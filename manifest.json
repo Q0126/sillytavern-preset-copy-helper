@@ -1,0 +1,16 @@
+{
+  "display_name": "白水 · 预设搜索与正文复制",
+  "loading_order": 100,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "白水",
+  "version": "1.0.0",
+  "auto_update": true,
+  "hooks": {
+    "disable": "onDisable",
+    "enable": "onEnable"
+  },
+  "homePage": "https://github.com/Q0126/sillytavern-preset-copy-helper"
+}
