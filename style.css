@@ -11,7 +11,7 @@ body.bs-pc-protect #chat .mes .mes_text,
 body.bs-pc-protect #chat .mes .mes_text * { -webkit-user-select:text; user-select:text; }
 body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[contenteditable="true"],.code-copy,.copy-code-button) { -webkit-user-select:none; user-select:none; }
 .bs-pc-message { font-size:.8em; padding:3px 7px; opacity:.8; }
-.bs-pc-settings label { display:flex; align-items:center; gap:8px; margin:8px 0; }
+.bs-pc-settings .bs-pc-description { display:block; margin:8px 0; opacity:.75; }
 .bs-pc-dialog { box-sizing:border-box; width:min(760px,calc(100vw - 16px)); height:min(850px,calc(100dvh - 16px)); max-height:calc(100dvh - 16px); padding:0; border:1px solid var(--SmartThemeBorderColor,#666); border-radius:14px; background:var(--SmartThemeBlurTintColor,#202128); color:var(--SmartThemeBodyColor,#eee); }
 .bs-pc-dialog::backdrop { background:#000a; }
 .bs-pc-dialog[open] { display:flex; flex-direction:column; }

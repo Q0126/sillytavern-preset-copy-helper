@@ -281,13 +281,22 @@ function applySettings() { document.body.classList.toggle('bs-pc-protect', setti
 function mountSettings() {
     const host = document.querySelector('#extensions_settings2, #extensions_settings');
     if (!host || document.getElementById('bs-pc-settings')) return;
-    const panel = element('div', { id:'bs-pc-settings', className:'bs-pc-settings' });
-    const drawer=element('details'); drawer.append(element('summary',{},'白水 · 预设搜索与正文复制'));
+    const panel = element('div', { id:'bs-pc-settings', className:'extension_container bs-pc-settings' });
+    const drawer = element('div', { className:'inline-drawer' });
+    const header = element('div', { className:'inline-drawer-toggle inline-drawer-header', role:'button', tabIndex:0 });
+    const content = element('div', { className:'inline-drawer-content', id:'bs-pc-settings-content' });
+    header.setAttribute('aria-controls', content.id);
+    header.append(element('b', {}, '白水杂货铺'), element('div', { className:'inline-drawer-icon fa-solid fa-circle-chevron-down down' }));
+    // SillyTavern owns the click handler and animation for native inline drawers.
+    header.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); header.click(); }
+    });
     for(const [key,label] of [['search','预设条目关键词搜索'],['protect','正文复制保护与滚动选区保留'],['buttons','显示“连续选择”按钮']]) {
-        const line=element('label'); const input=element('input',{type:'checkbox',checked:settings[key]});
-        input.onchange=()=>{settings[key]=input.checked;save();}; line.append(input,document.createTextNode(label)); drawer.append(line);
+        const line=element('label', { className:'checkbox_label' }); const input=element('input',{type:'checkbox',checked:settings[key]});
+        input.onchange=()=>{settings[key]=input.checked;save();}; line.append(input,element('span', {}, label)); content.append(line);
     }
-    drawer.append(element('small',{},'原生长按由浏览器控制；跨屏选区仍跳动时，请用每条消息旁的“连续选择”。正文指消息文字区域，不含顶栏、消息工具和输入框；不读取 iframe 内容。'));
+    content.append(element('small',{className:'bs-pc-description'},'原生长按由浏览器控制；跨屏选区仍跳动时，请用每条消息旁的“连续选择”。正文指消息文字区域，不含顶栏、消息工具和输入框；不读取 iframe 内容。'));
+    drawer.append(header, content);
     panel.append(drawer);host.append(panel);
 }
 function init() {
