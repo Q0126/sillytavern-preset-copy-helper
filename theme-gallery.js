@@ -1,4 +1,4 @@
-import { previewDocument, previewSize } from './theme-preview.js';
+import { previewDocument, previewSize, activatePreviewFrame, resetPreviewCache } from './theme-preview.js';
 import { createCSSHistory } from './css-history.js';
 // Theme browser: applies via the existing #themes change handler, never rewrites themes.
 const normalize = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
@@ -39,6 +39,8 @@ export function createThemeGallery({context,settings,onSave}) {
     let native=null,launch=null,historyLaunch=null,modal=null,cache=[],dirty=true,pending=null,disposed=false;
     let query='',tagFilter='',detailName=null,lazy=null,favoritesOnly=false,previewWidth=0;
     let optionObserver=null,modalObserver=null;
+    let workFrame=0,searchTimer=0;
+    const previewWork=[],liveThumbnails=new Map();
     const urls=new Set(),previewCleanups=new Set();
     if(!Array.isArray(settings.themeMeta))settings.themeMeta=[];
     const getMeta=name=>settings.themeMeta.find(item=>item?.name===name)??{name,tags:[]};
@@ -56,8 +58,14 @@ export function createThemeGallery({context,settings,onSave}) {
     }
     function cleanupPreviews() {
         lazy?.disconnect();lazy=null;
+        cancelAnimationFrame(workFrame);workFrame=0;previewWork.length=0;liveThumbnails.clear();
         for(const cleanup of previewCleanups)cleanup();previewCleanups.clear();
         for(const url of urls)URL.revokeObjectURL(url);urls.clear();
+    }
+    function queuePreview(task){
+        previewWork.push(task);
+        const step=()=>{workFrame=0;previewWork.shift()?.();if(previewWork.length)workFrame=requestAnimationFrame(step);};
+        if(!workFrame)workFrame=requestAnimationFrame(step);
     }
     async function loadThemes(force=false) {
         if(!force&&!dirty&&cache.length)return cache;
@@ -108,16 +116,26 @@ export function createThemeGallery({context,settings,onSave}) {
         const size=previewSize(name,previewWidth);host.style.aspectRatio=`${size.width}/${size.height}`;
         // Transparent theme canvases must not reveal the gallery's unrelated current skin.
         if(theme?.blur_tint_color)host.style.backgroundColor=theme.blur_tint_color;
-        let gone=false,resize=null,ownURL=null;
-        const clear=()=>{gone=true;resize?.disconnect();if(ownURL){URL.revokeObjectURL(ownURL);urls.delete(ownURL);}host.replaceChildren();};
+        let gone=false,resize=null,ownURL=null,readyTimer=0,activateTimer=0;
+        host.dataset.ready='false';host.replaceChildren(el('span',{className:'bs-theme-loading'},'正在加载预览…'));
+        const clear=()=>{gone=true;clearTimeout(readyTimer);clearTimeout(activateTimer);resize?.disconnect();if(ownURL){URL.revokeObjectURL(ownURL);urls.delete(ownURL);}host.replaceChildren();};
         previewCleanups.add(clear);
         const builtIn=()=>{
             if(gone||!host.isConnected)return;
-            if(!theme){host.append(el('span',{className:'bs-theme-no-preview'},'暂无预览\n可上传封面'));return;}
-            const frame=el('iframe',{title:`${name} 示意预览`,tabIndex:-1,referrerPolicy:'no-referrer'});
+            if(!theme){host.replaceChildren(el('span',{className:'bs-theme-no-preview'},'暂无预览\n可上传封面'));return;}
+            const frame=el('iframe',{title:`${name} CSS 预览`,tabIndex:-1,referrerPolicy:'no-referrer'});
             // Same-origin assets let the native font files load; scripts remain forbidden.
             frame.setAttribute('sandbox','allow-same-origin');frame.setAttribute('aria-hidden','true');
             frame.style.setProperty('--bs-frame-width',`${size.width}px`);frame.style.setProperty('--bs-frame-height',`${size.height}px`);frame.srcdoc=previewDocument(theme,size);host.append(frame);
+            const ready=()=>{
+                if(gone||!frame.isConnected)return;
+                const doc=frame.contentDocument;
+                if(doc?.readyState!=='loading'&&doc?.querySelector('#chat')){
+                    host.dataset.ready='true';host.querySelector('.bs-theme-loading')?.remove();
+                    activateTimer=setTimeout(()=>{if(!gone)activatePreviewFrame(frame);},60);
+                }else readyTimer=setTimeout(ready,40);
+            };
+            readyTimer=setTimeout(ready,0);
             const scroller=host.closest('.bs-theme-scroll');
             const scale=()=>{
                 if(gone)return;
@@ -134,8 +152,8 @@ export function createThemeGallery({context,settings,onSave}) {
         const key=ignoreCover?null:coverKey(name);
         if(key)coverStore(key,'get').then(blob=>{
             if(gone||!host.isConnected)return;
-            if(blob){ownURL=URL.createObjectURL(blob);urls.add(ownURL);host.append(el('img',{src:ownURL,alt:`${name} 自定义封面`,loading:'lazy'}));}else builtIn();
-        }).catch(()=>builtIn());else builtIn();
+            if(blob){ownURL=URL.createObjectURL(blob);urls.add(ownURL);host.dataset.ready='true';host.replaceChildren(el('img',{src:ownURL,alt:`${name} 自定义封面`,loading:'lazy'}));}else queuePreview(builtIn);
+        }).catch(()=>queuePreview(builtIn));else queuePreview(builtIn);
         return clear;
     }
     function makePreview(name) {
@@ -152,9 +170,9 @@ export function createThemeGallery({context,settings,onSave}) {
         const close=el('button',{type:'button',className:'menu_button bs-theme-close',ariaLabel:'关闭美化收藏架'},'关闭');close.onclick=()=>modal.close();header.append(heading,close);
         const tools=el('div',{className:'bs-theme-search-row'}),search=el('input',{type:'search',className:'text_pole',placeholder:'搜索美化名称或 tag…'});
         search.setAttribute('aria-label','搜索美化名称或标签');
-        search.oninput=()=>{query=search.value;renderGrid();};
+        search.oninput=()=>{query=search.value;clearTimeout(searchTimer);searchTimer=setTimeout(renderGrid,140);};
         const reload=el('button',{type:'button',className:'menu_button'},'刷新');
-        reload.onclick=async()=>{reload.disabled=true;status.textContent='正在刷新…';try{await loadThemes(true);if(modal)renderGrid();}catch(error){status.textContent=error.message;}finally{reload.disabled=false;}};
+        reload.onclick=async()=>{reload.disabled=true;status.textContent='正在刷新…';resetPreviewCache();try{await loadThemes(true);if(modal)renderGrid();}catch(error){status.textContent=error.message;}finally{reload.disabled=false;}};
         const width=el('select',{className:'bs-theme-width',ariaLabel:'预览宽度'});for(const [value,label] of [['0','适配设备'],['360','360px'],['390','390px'],['768','768px']])width.append(el('option',{value},label));width.value=String(previewWidth);width.onchange=()=>{previewWidth=Number(width.value);renderGrid();};tools.append(search,width,reload);
         const tags=el('div',{className:'bs-theme-filters',ariaLabel:'标签分类'});
         const status=el('small',{className:'bs-theme-status',role:'status'},'正在读取美化…');
@@ -162,7 +180,7 @@ export function createThemeGallery({context,settings,onSave}) {
         const footer=el('small',{className:'bs-theme-note'},'按原生消息结构渲染 CSS；可切换预览宽度。点卡片查看大图、收藏、标签与修改对比。');
         modal.append(header,tools,tags,status,scroll,footer);
         const dialog=modal;
-        dialog.addEventListener('close',()=>{cleanupPreviews();modalObserver?.disconnect();modalObserver=null;dialog.remove();if(modal===dialog)modal=null;previousFocus?.focus?.({preventScroll:true});},{once:true});
+        dialog.addEventListener('close',()=>{clearTimeout(searchTimer);cleanupPreviews();modalObserver?.disconnect();modalObserver=null;dialog.remove();if(modal===dialog)modal=null;previousFocus?.focus?.({preventScroll:true});},{once:true});
         document.body.append(dialog);dialog.showModal();
         // Opening and searching never changes the real UI theme.
         function renderFilters() {
@@ -186,10 +204,17 @@ export function createThemeGallery({context,settings,onSave}) {
             lazy=new IntersectionObserver(entries=>{
                 for(const entry of entries) {
                     const host=entry.target;
-                    if(entry.isIntersecting&&!host._bsCleanup)host._bsCleanup=populatePreview(host,host.dataset.theme);
-                    else if(!entry.isIntersecting&&host._bsCleanup){host._bsCleanup();previewCleanups.delete(host._bsCleanup);host._bsCleanup=null;}
+                    host._bsVisible=entry.isIntersecting;
+                    if(entry.isIntersecting){
+                        if(!host._bsCleanup)host._bsCleanup=populatePreview(host,host.dataset.theme);
+                        liveThumbnails.delete(host);liveThumbnails.set(host,host._bsCleanup);
+                    }
                 }
-            },{root:scroll,rootMargin:'200px'});
+                while(liveThumbnails.size>8){
+                    const pair=[...liveThumbnails].find(([host])=>!host._bsVisible)??liveThumbnails.entries().next().value;
+                    const [host,cleanup]=pair;cleanup();previewCleanups.delete(cleanup);host._bsCleanup=null;liveThumbnails.delete(host);
+                }
+            },{root:scroll,rootMargin:'80px'});
             for(const item of shown) {
                 const card=el('article',{className:'bs-theme-card'});card.dataset.theme=item.name;
                 const opener=el('button',{type:'button',className:'bs-theme-open'});opener.setAttribute('aria-label',`预览 ${item.label}`);

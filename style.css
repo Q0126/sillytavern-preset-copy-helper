@@ -48,6 +48,7 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-theme-thumb iframe { position:absolute; top:0; left:0; width:var(--bs-frame-width,390px) !important; height:var(--bs-frame-height,680px) !important; min-width:0; max-width:none; max-height:none; border:0; transform-origin:top left; pointer-events:none; }
 .bs-theme-thumb img { display:block; width:100%; height:100%; object-fit:cover; object-position:top; }
 .bs-theme-no-preview { position:absolute; inset:0; display:grid; place-content:center; text-align:center; opacity:.5; font-size:13px; white-space:pre-line; }
+.bs-theme-loading { position:absolute; inset:0; display:grid; place-items:center; font-size:12px; opacity:.65; z-index:1; pointer-events:none; }
 .bs-theme-caption { padding:10px; width:100%; }
 .bs-theme-caption > strong { display:block; font-size:.88em; line-height:1.5; overflow-wrap:anywhere; font-weight:500; }
 .bs-theme-tags { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
