@@ -20,7 +20,7 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-theme-modal[open] { display:flex; flex-direction:column; }
 .bs-theme-modal::backdrop { background:#0008; backdrop-filter:blur(3px); }
 .bs-theme-modal :is(button,input) { box-sizing:border-box; font:inherit; color:inherit; }
-.bs-theme-modal .menu_button { background-color:var(--SmartThemeBlurTintColor,#242631); border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:8px; padding:7px 11px; color:inherit; }
+.bs-theme-modal .menu_button { background-color:var(--SmartThemeBlurTintColor,#242631); border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:8px; padding:7px 11px; color:inherit; width:auto; min-width:0; max-width:100%; writing-mode:horizontal-tb; word-break:normal; overflow-wrap:normal; }
 .bs-theme-modal input.text_pole { background-color:var(--SmartThemeChatTintColor,#1d202c); border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:8px; padding:9px 10px; color:inherit; }
 .bs-theme-modal button { cursor:pointer; }
 .bs-theme-header { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:16px 16px 10px; flex-shrink:0; }
@@ -58,7 +58,7 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-theme-empty { grid-column:1/-1; padding:40px 0; text-align:center; opacity:.65; }
 .bs-theme-note { padding:10px 16px max(10px,env(safe-area-inset-bottom)); font-size:.72em; opacity:.65; line-height:1.6; border-top:1px solid var(--SmartThemeBorderColor,#7775); flex-shrink:0; }
 .bs-theme-detail { display:flex; flex-direction:column; gap:12px; padding-bottom:8px; }
-.bs-theme-detail > .menu_button { align-self:flex-start; margin:0; }
+.bs-theme-detail > .menu_button { align-self:flex-start; margin:0; flex:none; width:max-content!important; min-width:max-content; white-space:nowrap!important; writing-mode:horizontal-tb!important; }
 .bs-theme-detail h3 { font-size:1.05em; overflow-wrap:anywhere; margin:0; }
 .bs-theme-large-preview { width:min(100%,390px); align-self:center; border-radius:12px; border:1px solid var(--SmartThemeBorderColor,#7775); }
 .bs-theme-large-preview,.bs-theme-large-preview iframe,.bs-theme-compare-pane .bs-theme-thumb,.bs-theme-compare-pane iframe { pointer-events:auto; }

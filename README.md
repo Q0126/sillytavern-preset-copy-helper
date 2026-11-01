@@ -1,4 +1,4 @@
-# 白水杂货铺 v1.3.0
+# 白水杂货铺 v1.3.1
 
 SillyTavern 前端扩展：预设条目搜索、正文复制保护、美化双列预览与标签管理。
 
@@ -13,6 +13,11 @@ https://github.com/Q0126/sillytavern-preset-copy-helper
 已安装的用户在扩展管理中更新，再刷新网页即可。设置在 **扩展 → 白水杂货铺**。
 
 手动安装：将仓库文件放到 `public/scripts/extensions/third-party/st-preset-copy-helper/`，确保 `manifest.json` 位于扩展目录第一层。这不是正则或角色卡，不能以 JSON 导入。
+
+## v1.3.1
+
+- 修复美化详情“返回列表”和对比页“返回美化详情”被压成逐字竖排的问题。
+- 调整收藏架按钮宽度规则，返回按钮保持单行横排，操作按钮按各自区域的可用宽度显示。
 
 ## v1.3.0
 
