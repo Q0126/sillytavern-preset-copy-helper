@@ -74,4 +74,14 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-theme-code-grid label { min-width:0; font-size:.8em; }
 .bs-theme-code { display:block; width:100%; height:260px; resize:vertical; margin-top:8px; font:12px/1.5 monospace !important; white-space:pre; overflow:auto; }
 .bs-theme-modal .bs-theme-close,.bs-theme-search-row > button { white-space:nowrap; width:auto; min-width:max-content; flex-shrink:0; }
+.bs-css-editor-actions { box-sizing:border-box; display:flex; flex-wrap:wrap; align-items:center; align-self:stretch; flex:0 0 auto; width:100%; min-width:0; gap:8px; margin:8px 0; }
+#bs-css-history-launch,#bs-css-search-launch { display:inline-flex; align-items:center; justify-content:center; margin:0; width:auto!important; min-width:max-content; max-width:none; flex:0 0 auto; min-height:36px; white-space:nowrap!important; writing-mode:horizontal-tb!important; }
+.bs-css-search { box-sizing:border-box; display:flex; flex-direction:column; width:100%; min-width:0; flex:none; gap:8px; padding:10px; margin:8px 0; border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:8px; }
+.bs-css-search[hidden],.bs-css-editor-actions[hidden],#bs-css-search-launch[hidden] { display:none!important; }
+.bs-css-search .text_pole { width:100%; min-width:0; margin:0; }
+.bs-css-search-count { opacity:.75; }
+.bs-css-search-snippet { white-space:pre-wrap; overflow-wrap:anywhere; max-height:5em; overflow:auto; font:12px/1.5 monospace; }
+.bs-css-search-snippet:empty { display:none; }
+.bs-css-search-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.bs-css-search-actions .menu_button { width:100%; min-width:0; margin:0; min-height:36px; white-space:normal; }
 @media(max-width:600px) { .bs-theme-modal { width:calc(100vw - 16px); height:calc(100dvh - 16px); margin:8px; max-height:calc(100dvh - 16px); max-width:calc(100vw - 16px); } .bs-theme-header{padding:12px 12px 10px;} .bs-theme-search-row{padding:0 12px 10px;} .bs-theme-filters{padding:0 12px 10px;} .bs-theme-scroll{padding:2px 12px 12px;} .bs-theme-status{padding:0 12px 8px;} .bs-theme-grid{gap:10px;} .bs-theme-caption{padding:8px;} .bs-theme-note{padding:8px 12px;} }

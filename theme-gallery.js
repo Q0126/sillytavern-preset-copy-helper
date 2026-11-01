@@ -1,5 +1,6 @@
 import { previewDocument, previewSize, activatePreviewFrame, resetPreviewCache } from './theme-preview.js';
 import { createCSSHistory } from './css-history.js';
+import { createCSSSearch } from './css-search.js';
 // Theme browser: applies via the existing #themes change handler, never rewrites themes.
 const normalize = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const el = (tag, props={}, text) => { const node=document.createElement(tag);Object.assign(node,props);if(text!==undefined)node.textContent=text;return node; };
@@ -47,6 +48,7 @@ export function createThemeGallery({context,settings,onSave}) {
     const tagsOf=name=>Array.isArray(getMeta(name).tags)?getMeta(name).tags.filter(tag=>typeof tag==='string'):[];
     const names=()=>native?[...native.options].filter(option=>!option.disabled&&option.value).map(option=>({name:option.value,label:option.textContent??option.value})):[];
     const history=createCSSHistory({settings,onSave,onUpdate:()=>{}});
+    const cssSearch=createCSSSearch();let editorActions=null;
     const favorite=name=>getMeta(name).favorite===true;
     function toggleFavorite(name){const index=settings.themeMeta.findIndex(item=>item?.name===name);if(index<0)settings.themeMeta.push({name,tags:[],favorite:true});else settings.themeMeta[index]={...settings.themeMeta[index],favorite:!favorite(name)};onSave();}
     const coverKey=name=>settings.coverNamespace?`${settings.coverNamespace}:${name}`:null;
@@ -99,8 +101,12 @@ export function createThemeGallery({context,settings,onSave}) {
         launch.replaceChildren(el('span',{},selectedName()),el('span',{className:'bs-theme-grid-icon',ariaHidden:'true'},'▦'));
         launch.title='打开美化预览，按名字或标签搜索';
         const editor=document.querySelector('#customCSS');
-        if(editor&&!historyLaunch?.isConnected){historyLaunch=el('button',{id:'bs-css-history-launch',type:'button',className:'menu_button'},'修改前后对比');historyLaunch.onclick=()=>open(native.value);editor.after(historyLaunch);}
+        // The native textarea wrapper is a nowrap flex row. Place tools AFTER that
+        // wrapper so buttons cannot squeeze the textarea or collapse to one character.
+        const editorAnchor=editor?.closest('#CustomCSS-textAreaBlock')??editor;
+        if(editor&&(!historyLaunch?.isConnected||editorActions?.previousElementSibling!==editorAnchor)){editorActions?.remove();editorActions=el('div',{className:'bs-css-editor-actions'});historyLaunch=el('button',{id:'bs-css-history-launch',type:'button',className:'menu_button'},'修改前后对比');historyLaunch.onclick=()=>open(native.value);editorActions.append(historyLaunch);editorAnchor.after(editorActions);}
         if(historyLaunch)historyLaunch.hidden=!enabled;
+        if(editor&&editorActions){editorActions.hidden=!enabled;cssSearch.mount(editor,editorActions,enabled);}
         if(!enabled)modal?.close();
     }
     function onChange(event) {
@@ -295,5 +301,5 @@ export function createThemeGallery({context,settings,onSave}) {
         if(native)modalObserver.observe(native,{childList:true,subtree:true});
         try{await loadThemes();if(modal===dialog){const item=initialCompare&&names().find(item=>item.name===initialCompare);if(item)await renderCompare(item);else renderGrid();}}catch(error){if(modal===dialog){renderGrid();status.textContent='美化数据读取失败：可刷新重试；仍可使用自定义封面与标签';}}
     }
-    return {refresh,destroy(){disposed=true;history.destroy();modal?.close();optionObserver?.disconnect();modalObserver?.disconnect();cleanupPreviews();document.removeEventListener('change',onChange);document.removeEventListener('click',onClick,true);native?.classList.remove('bs-theme-native-hidden');launch?.remove();historyLaunch?.remove();}};
+    return {refresh,destroy(){disposed=true;history.destroy();cssSearch.destroy();editorActions?.remove();modal?.close();optionObserver?.disconnect();modalObserver?.disconnect();cleanupPreviews();document.removeEventListener('change',onChange);document.removeEventListener('click',onClick,true);native?.classList.remove('bs-theme-native-hidden');launch?.remove();}};
 }
