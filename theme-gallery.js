@@ -106,6 +106,8 @@ export function createThemeGallery({context,settings,onSave}) {
         const currentCSS=document.querySelector('#customCSS');
         const theme=override??(base&&native?.value===name&&currentCSS?{...base,custom_css:currentCSS.value}:base);
         const size=previewSize(name,previewWidth);host.style.aspectRatio=`${size.width}/${size.height}`;
+        // Transparent theme canvases must not reveal the gallery's unrelated current skin.
+        if(theme?.blur_tint_color)host.style.backgroundColor=theme.blur_tint_color;
         let gone=false,resize=null,ownURL=null;
         const clear=()=>{gone=true;resize?.disconnect();if(ownURL){URL.revokeObjectURL(ownURL);urls.delete(ownURL);}host.replaceChildren();};
         previewCleanups.add(clear);
@@ -116,8 +118,18 @@ export function createThemeGallery({context,settings,onSave}) {
             // Same-origin assets let the native font files load; scripts remain forbidden.
             frame.setAttribute('sandbox','allow-same-origin');frame.setAttribute('aria-hidden','true');
             frame.style.setProperty('--bs-frame-width',`${size.width}px`);frame.style.setProperty('--bs-frame-height',`${size.height}px`);frame.srcdoc=previewDocument(theme,size);host.append(frame);
-            const scale=()=>{if(!gone)frame.style.transform=`scale(${host.clientWidth/size.width})`;};
-            resize=new ResizeObserver(scale);resize.observe(host);scale();
+            const scroller=host.closest('.bs-theme-scroll');
+            const scale=()=>{
+                if(gone)return;
+                if(host.classList.contains('bs-theme-large-preview')){
+                    const offset=scroller?host.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop:90;
+                    const height=Math.max(220,(scroller?.clientHeight??innerHeight)-offset-12);
+                    const maximum=`${Math.min(390,size.width*height/size.height)}px`;
+                    if(host.style.maxWidth!==maximum)host.style.maxWidth=maximum;
+                }
+                frame.style.transform=`scale(${host.clientWidth/size.width})`;
+            };
+            resize=new ResizeObserver(scale);resize.observe(host);if(scroller)resize.observe(scroller);scale();
         };
         const key=ignoreCover?null:coverKey(name);
         if(key)coverStore(key,'get').then(blob=>{
