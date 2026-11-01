@@ -1,22 +1,8 @@
+import { previewDocument, previewSize } from './theme-preview.js';
+import { createCSSHistory } from './css-history.js';
 // Theme browser: applies via the existing #themes change handler, never rewrites themes.
 const normalize = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const el = (tag, props={}, text) => { const node=document.createElement(tag);Object.assign(node,props);if(text!==undefined)node.textContent=text;return node; };
-const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const previewCSS = theme => String(theme.custom_css ?? '').replace(/<\//g,'<\\/');
-
-function previewDocument(theme) {
-    const vars={SmartThemeBodyColor:theme.main_text_color??'#edeef6',SmartThemeEmColor:theme.italics_text_color??theme.main_text_color??'#bac6df',SmartThemeQuoteColor:theme.quote_text_color??theme.main_text_color??'#b4c6e8',SmartThemeBlurTintColor:theme.blur_tint_color??'#292e42',SmartThemeChatTintColor:theme.chat_tint_color??'#252a39',SmartThemeUserMesBlurTintColor:theme.user_mes_blur_tint_color??'transparent',SmartThemeBotMesBlurTintColor:theme.bot_mes_blur_tint_color??'transparent',SmartThemeBorderColor:theme.border_color??'#969db74d',SmartThemeShadowColor:theme.shadow_color??'#0007'};
-    const variables=Object.entries(vars).map(([key,value])=>`--${key}:${String(value).replace(/[;{}<>]/g,'')};`).join('');
-    const links=[...document.querySelectorAll('link[rel="stylesheet"]')].filter(link=>/\/(?:style\.css|css\/(?:mobile-styles|fontawesome\.min|solid\.min)\.css)$/.test(new URL(link.href).pathname)).map(link=>`<link rel="stylesheet" href="${escapeHTML(link.href)}">`).join('');
-    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; style-src 'unsafe-inline' http: https:; img-src data: blob: http: https:; font-src data: http: https:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'">${links}<style>
-    :root{${variables}--fontScale:1;--mainFontSize:16px;--chatWidth:100%;--blurStrength:0px;--avatar-base-width:44px;--avatar-base-height:44px}
-    *{box-sizing:border-box}html,body{margin:0;width:390px;height:680px;overflow:hidden}body{font:16px/1.6 system-ui,sans-serif;color:var(--SmartThemeBodyColor);background:var(--SmartThemeChatTintColor)}
-    #top-bar{position:relative;inset:auto;width:100%;height:52px;display:flex;align-items:center;justify-content:space-around;background:var(--SmartThemeBlurTintColor);border-bottom:1px solid var(--SmartThemeBorderColor)}.drawer-icon{font-size:20px}
-    #sheld{position:relative;inset:auto;width:100%;height:628px;max-height:none;display:flex;flex-direction:column;margin:0}#chat{position:relative;inset:auto;display:block;flex:1;width:100%;height:auto;min-height:0;overflow:hidden;padding:18px 14px;background:var(--SmartThemeChatTintColor)}
-    .mes{display:flex;position:relative;gap:12px;width:100%;padding:16px 4px;margin:0 0 18px;border-bottom:1px solid var(--SmartThemeBorderColor);background:var(--SmartThemeBotMesBlurTintColor)}.mes[is_user="true"]{background:var(--SmartThemeUserMesBlurTintColor)}.avatar{width:44px;height:44px;min-width:44px;border-radius:50%;background:var(--SmartThemeBlurTintColor);border:1px solid var(--SmartThemeBorderColor);display:grid;place-items:center;font-size:23px;overflow:hidden}.mes_block{min-width:0;flex:1}.ch_name{display:flex;justify-content:space-between;gap:8px;font-size:14px;margin-bottom:10px}.mes_buttons,.timestamp{font-size:11px;opacity:.6}.mes_text{padding:0;white-space:normal;font-size:16px;line-height:1.85}.mes_text p{margin:0 0 12px}em{color:var(--SmartThemeEmColor)}q{color:var(--SmartThemeQuoteColor)}
-    #send_form{position:relative;inset:auto;width:100%;min-height:62px;display:flex;align-items:center;gap:10px;padding:10px;background:var(--SmartThemeBlurTintColor);border-top:1px solid var(--SmartThemeBorderColor)}#send_textarea{flex:1;min-width:0;border:1px solid var(--SmartThemeBorderColor);border-radius:10px;padding:10px;color:inherit;background:transparent;font:inherit}#send_but{font-size:23px}
-    </style><style>${previewCSS(theme)}</style></head><body class="${theme.chat_display===1?'bubblechat':theme.chat_display===2?'documentstyle':''}"><div id="bg1"></div><div id="bg_custom"></div><div id="top-bar"><div class="drawer"><span class="drawer-icon fa-solid fa-sliders">☷</span></div><div class="drawer"><span class="drawer-icon">♧</span></div><div class="drawer"><span class="drawer-icon">✦</span></div><div class="drawer"><span class="drawer-icon">☰</span></div></div><div id="sheld"><div id="chat"><div class="mes" is_user="false" ch_name="角色" mesid="0"><div class="avatar">✧</div><div class="mes_block"><div class="ch_name"><b class="name_text">角色</b><span class="mes_buttons">⋯　✎</span></div><div class="mes_text"><p>午后的风穿过窗边，书页轻轻翻动。</p><p><q>今天想聊些什么？</q></p><p><em>这是一段美化示意文字。</em></p></div></div></div><div class="mes" is_user="true" ch_name="你" mesid="1"><div class="avatar">☁</div><div class="mes_block"><div class="ch_name"><b class="name_text">你</b><span class="timestamp">14:30</span></div><div class="mes_text"><p>就从这一刻开始吧。</p></div></div></div><div class="mes" is_user="false" ch_name="角色" mesid="2"><div class="avatar">✧</div><div class="mes_block"><div class="ch_name"><b class="name_text">角色</b><span class="mes_buttons">⋯　✎</span></div><div class="mes_text"><p>配色、文字与对话的模样，都在这里。</p></div></div></div></div><div id="send_form"><span>☰</span><div id="send_textarea" class="text_pole">发送一条消息…</div><span id="send_but">➤</span></div></div></body></html>`;
-}
 
 let dbPromise;
 function coverDB() {
@@ -50,14 +36,17 @@ async function compressCover(file) {
 }
 
 export function createThemeGallery({context,settings,onSave}) {
-    let native=null,launch=null,modal=null,cache=[],dirty=true,pending=null,disposed=false;
-    let query='',tagFilter='',detailName=null,lazy=null;
+    let native=null,launch=null,historyLaunch=null,modal=null,cache=[],dirty=true,pending=null,disposed=false;
+    let query='',tagFilter='',detailName=null,lazy=null,favoritesOnly=false,previewWidth=0;
     let optionObserver=null,modalObserver=null;
     const urls=new Set(),previewCleanups=new Set();
     if(!Array.isArray(settings.themeMeta))settings.themeMeta=[];
     const getMeta=name=>settings.themeMeta.find(item=>item?.name===name)??{name,tags:[]};
     const tagsOf=name=>Array.isArray(getMeta(name).tags)?getMeta(name).tags.filter(tag=>typeof tag==='string'):[];
     const names=()=>native?[...native.options].filter(option=>!option.disabled&&option.value).map(option=>({name:option.value,label:option.textContent??option.value})):[];
+    const history=createCSSHistory({settings,onSave,onUpdate:()=>{}});
+    const favorite=name=>getMeta(name).favorite===true;
+    function toggleFavorite(name){const index=settings.themeMeta.findIndex(item=>item?.name===name);if(index<0)settings.themeMeta.push({name,tags:[],favorite:true});else settings.themeMeta[index]={...settings.themeMeta[index],favorite:!favorite(name)};onSave();}
     const coverKey=name=>settings.coverNamespace?`${settings.coverNamespace}:${name}`:null;
     function saveTags(name,text) {
         const tags=[...new Set(text.split(/[,，、\n]+/).map(tag=>tag.trim().slice(0,32)).filter(Boolean))].slice(0,20);
@@ -91,7 +80,7 @@ export function createThemeGallery({context,settings,onSave}) {
             optionObserver?.disconnect();native?.classList.remove('bs-theme-native-hidden');launch?.remove();native=current;
             if(native) {
                 launch=el('button',{type:'button',id:'bs-theme-launch',className:'menu_button bs-theme-launch'});
-                launch.setAttribute('aria-haspopup','dialog');launch.onclick=open;
+                launch.setAttribute('aria-haspopup','dialog');launch.onclick=()=>open();
                 native.after(launch);
                 optionObserver=new MutationObserver(()=>{dirty=true;refresh();});optionObserver.observe(native,{childList:true,subtree:true});
             }
@@ -101,16 +90,22 @@ export function createThemeGallery({context,settings,onSave}) {
         native.classList.toggle('bs-theme-native-hidden',enabled);launch.hidden=!enabled;
         launch.replaceChildren(el('span',{},selectedName()),el('span',{className:'bs-theme-grid-icon',ariaHidden:'true'},'▦'));
         launch.title='打开美化预览，按名字或标签搜索';
+        const editor=document.querySelector('#customCSS');
+        if(editor&&!historyLaunch?.isConnected){historyLaunch=el('button',{id:'bs-css-history-launch',type:'button',className:'menu_button'},'修改前后对比');historyLaunch.onclick=()=>open(native.value);editor.after(historyLaunch);}
+        if(historyLaunch)historyLaunch.hidden=!enabled;
         if(!enabled)modal?.close();
     }
     function onChange(event) {
-        if(event.target===native)refresh();
+        if(event.target===native){history.sync();refresh();}
         if(event.target?.id==='ui_preset_import_file')dirty=true;
     }
     function onClick(event) { if(event.target.closest?.('#ui-preset-update-button,#ui-preset-save-button,#ui-preset-delete-button'))dirty=true; }
     document.addEventListener('change',onChange);document.addEventListener('click',onClick,true);
-    function populatePreview(host,name) {
-        const theme=cache.find(item=>item.name===name);
+    function populatePreview(host,name,override=null,ignoreCover=false) {
+        const base=cache.find(item=>item.name===name);
+        const currentCSS=document.querySelector('#customCSS');
+        const theme=override??(base&&native?.value===name&&currentCSS?{...base,custom_css:currentCSS.value}:base);
+        const size=previewSize(name,previewWidth);host.style.aspectRatio=`${size.width}/${size.height}`;
         let gone=false,resize=null,ownURL=null;
         const clear=()=>{gone=true;resize?.disconnect();if(ownURL){URL.revokeObjectURL(ownURL);urls.delete(ownURL);}host.replaceChildren();};
         previewCleanups.add(clear);
@@ -118,12 +113,13 @@ export function createThemeGallery({context,settings,onSave}) {
             if(gone||!host.isConnected)return;
             if(!theme){host.append(el('span',{className:'bs-theme-no-preview'},'暂无预览\n可上传封面'));return;}
             const frame=el('iframe',{title:`${name} 示意预览`,tabIndex:-1,referrerPolicy:'no-referrer'});
-            frame.setAttribute('sandbox','');frame.setAttribute('aria-hidden','true');
-            frame.srcdoc=previewDocument(theme);host.append(frame);
-            const scale=()=>{if(!gone)frame.style.transform=`scale(${host.clientWidth/390})`;};
+            // Same-origin assets let the native font files load; scripts remain forbidden.
+            frame.setAttribute('sandbox','allow-same-origin');frame.setAttribute('aria-hidden','true');
+            frame.style.setProperty('--bs-frame-width',`${size.width}px`);frame.style.setProperty('--bs-frame-height',`${size.height}px`);frame.srcdoc=previewDocument(theme,size);host.append(frame);
+            const scale=()=>{if(!gone)frame.style.transform=`scale(${host.clientWidth/size.width})`;};
             resize=new ResizeObserver(scale);resize.observe(host);scale();
         };
-        const key=coverKey(name);
+        const key=ignoreCover?null:coverKey(name);
         if(key)coverStore(key,'get').then(blob=>{
             if(gone||!host.isConnected)return;
             if(blob){ownURL=URL.createObjectURL(blob);urls.add(ownURL);host.append(el('img',{src:ownURL,alt:`${name} 自定义封面`,loading:'lazy'}));}else builtIn();
@@ -134,9 +130,9 @@ export function createThemeGallery({context,settings,onSave}) {
         const host=el('div',{className:'bs-theme-thumb'});host.dataset.theme=name;
         return host;
     }
-    async function open() {
+    async function open(initialCompare=null) {
         if(modal||disposed)return;
-        query='';tagFilter='';detailName=null;
+        query='';tagFilter='';detailName=null;favoritesOnly=false;
         const previousFocus=document.activeElement;
         modal=el('dialog',{className:'bs-theme-modal',ariaLabel:'美化预览与分类'});
         const header=el('div',{className:'bs-theme-header'}),heading=el('div',{className:'bs-theme-heading'});
@@ -147,11 +143,11 @@ export function createThemeGallery({context,settings,onSave}) {
         search.oninput=()=>{query=search.value;renderGrid();};
         const reload=el('button',{type:'button',className:'menu_button'},'刷新');
         reload.onclick=async()=>{reload.disabled=true;status.textContent='正在刷新…';try{await loadThemes(true);if(modal)renderGrid();}catch(error){status.textContent=error.message;}finally{reload.disabled=false;}};
-        tools.append(search,reload);
+        const width=el('select',{className:'bs-theme-width',ariaLabel:'预览宽度'});for(const [value,label] of [['0','适配设备'],['360','360px'],['390','390px'],['768','768px']])width.append(el('option',{value},label));width.value=String(previewWidth);width.onchange=()=>{previewWidth=Number(width.value);renderGrid();};tools.append(search,width,reload);
         const tags=el('div',{className:'bs-theme-filters',ariaLabel:'标签分类'});
         const status=el('small',{className:'bs-theme-status',role:'status'},'正在读取美化…');
         const scroll=el('div',{className:'bs-theme-scroll'}),grid=el('div',{className:'bs-theme-grid'}),detail=el('div',{className:'bs-theme-detail',hidden:true});scroll.append(grid,detail);
-        const footer=el('small',{className:'bs-theme-note'},'自动生成的是示意预览；可上传实际截图作为封面。点击卡片查看大图、管理标签或应用。');
+        const footer=el('small',{className:'bs-theme-note'},'按原生消息结构渲染 CSS；可切换预览宽度。点卡片查看大图、收藏、标签与修改对比。');
         modal.append(header,tools,tags,status,scroll,footer);
         const dialog=modal;
         dialog.addEventListener('close',()=>{cleanupPreviews();modalObserver?.disconnect();modalObserver=null;dialog.remove();if(modal===dialog)modal=null;previousFocus?.focus?.({preventScroll:true});},{once:true});
@@ -161,6 +157,7 @@ export function createThemeGallery({context,settings,onSave}) {
             const all=[...new Set(names().flatMap(item=>tagsOf(item.name)))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
             if(tagFilter&&!all.includes(tagFilter))tagFilter='';
             tags.replaceChildren();
+            const fav=el('button',{type:'button',className:'bs-theme-tag-filter'},'★ 收藏');fav.setAttribute('aria-pressed',String(favoritesOnly));fav.onclick=()=>{favoritesOnly=!favoritesOnly;renderGrid();};tags.append(fav);
             for(const name of ['',...all]) {
                 const button=el('button',{type:'button',className:'bs-theme-tag-filter'},name||'全部');
                 button.setAttribute('aria-pressed',String(name===tagFilter));button.onclick=()=>{tagFilter=name;renderGrid();};tags.append(button);
@@ -171,7 +168,7 @@ export function createThemeGallery({context,settings,onSave}) {
             cleanupPreviews();detailName=null;grid.hidden=false;detail.hidden=true;tools.hidden=false;tags.hidden=false;footer.hidden=false;scroll.scrollTop=0;
             renderFilters();
             const terms=normalize(query).trim().split(/\s+/).filter(Boolean),all=names();
-            const shown=all.filter(item=>(!tagFilter||tagsOf(item.name).includes(tagFilter))&&terms.every(term=>normalize([item.label,...tagsOf(item.name)].join(' ')).includes(term)));
+            const shown=all.filter(item=>(!favoritesOnly||favorite(item.name))&&(!tagFilter||tagsOf(item.name).includes(tagFilter))&&terms.every(term=>normalize([item.label,...tagsOf(item.name)].join(' ')).includes(term)));
             status.textContent=`${shown.length} / ${all.length} 套美化`;
             grid.replaceChildren();
             lazy=new IntersectionObserver(entries=>{
@@ -182,13 +179,15 @@ export function createThemeGallery({context,settings,onSave}) {
                 }
             },{root:scroll,rootMargin:'200px'});
             for(const item of shown) {
-                const card=el('button',{type:'button',className:'bs-theme-card'});card.dataset.theme=item.name;
-                card.classList.toggle('bs-theme-active',item.name===native.value);card.setAttribute('aria-label',`预览 ${item.label}`);
+                const card=el('article',{className:'bs-theme-card'});card.dataset.theme=item.name;
+                const opener=el('button',{type:'button',className:'bs-theme-open'});opener.setAttribute('aria-label',`预览 ${item.label}`);
+                const star=el('button',{type:'button',className:'bs-theme-favorite',title:favorite(item.name)?'取消收藏':'收藏美化'},favorite(item.name)?'★':'☆');star.setAttribute('aria-label',`${favorite(item.name)?'取消收藏':'收藏'} ${item.label}`);star.setAttribute('aria-pressed',String(favorite(item.name)));star.onclick=()=>{const y=scroll.scrollTop;toggleFavorite(item.name);renderGrid();scroll.scrollTop=y;};
+                card.classList.toggle('bs-theme-active',item.name===native.value);
                 const thumb=makePreview(item.name),caption=el('div',{className:'bs-theme-caption'}),name=el('strong',{},item.label);
                 caption.append(name);
                 const chips=el('div',{className:'bs-theme-tags'});for(const tag of tagsOf(item.name))chips.append(el('span',{},tag));caption.append(chips);
                 if(item.name===native.value)caption.append(el('small',{className:'bs-theme-current'},'当前使用'));
-                card.append(thumb,caption);card.onclick=()=>renderDetail(item);grid.append(card);lazy.observe(thumb);
+                opener.append(thumb,caption);opener.onclick=()=>renderDetail(item);card.append(opener,star);grid.append(card);lazy.observe(thumb);
             }
             if(!shown.length)grid.append(el('p',{className:'bs-theme-empty'},'没有找到匹配的美化，试试其他名称或标签。'));
         }
@@ -207,7 +206,7 @@ export function createThemeGallery({context,settings,onSave}) {
                 native.value=item.name;
                 // Core binds jQuery change; triggering it also updates power_user and persists selection.
                 if(window.jQuery)window.jQuery(native).trigger('change');else native.dispatchEvent(new Event('change',{bubbles:true}));
-                refresh();dialog.close();
+                history.sync();refresh();dialog.close();
             };
             const upload=el('button',{type:'button',className:'menu_button'},'上传预览封面'),reset=el('button',{type:'button',className:'menu_button'},'恢复示意预览'),file=el('input',{type:'file',accept:'image/*',hidden:true});
             upload.onclick=()=>file.click();
@@ -221,13 +220,43 @@ export function createThemeGallery({context,settings,onSave}) {
                 }catch(error){status.textContent=error.message||'封面保存失败';}finally{upload.disabled=false;file.value='';}
             };
             reset.onclick=async()=>{try{const key=coverKey(item.name);if(key)await coverStore(key,'delete');if(modal===dialog&&detailName===item.name){await renderDetail(item);status.textContent='已恢复自动示意预览';}}catch{status.textContent='无法移除封面，请稍后重试';}};
-            actions.append(save,apply,upload,reset);detail.append(back,title,preview,label,input,actions,file,el('small',{className:'bs-theme-cover-note'},'标签随酒馆设置保存；上传的封面保存在当前浏览器。示意画面使用示例文字，不读取聊天。'));
+            const star=el('button',{type:'button',className:'menu_button'},favorite(item.name)?'★ 已收藏':'☆ 收藏美化');star.onclick=()=>{toggleFavorite(item.name);star.textContent=favorite(item.name)?'★ 已收藏':'☆ 收藏美化';};
+            const compare=el('button',{type:'button',className:'menu_button'},'修改前后对比');compare.onclick=()=>renderCompare(item);
+            actions.append(save,apply,star,compare,upload,reset);detail.append(back,title,preview,label,input,actions,file,el('small',{className:'bs-theme-cover-note'},'标签随酒馆设置保存；上传的封面保存在当前浏览器。预览使用空白原生消息模板与示例文字，不读取聊天。'));
             populatePreview(preview,item.name);
+        }
+        async function renderCompare(item) {
+            cleanupPreviews();detailName=item.name;grid.hidden=true;detail.hidden=false;tools.hidden=true;tags.hidden=true;footer.hidden=true;scroll.scrollTop=0;
+            detail.replaceChildren();status.textContent='正在读取最近一次修改记录…';
+            const back=el('button',{type:'button',className:'menu_button'},'← 返回美化详情');back.onclick=()=>renderDetail(item);
+            detail.append(back,el('h3',{},`${item.label} · 修改前后对比`));
+            let record;
+            try{record=await history.get(item.name);}catch{if(modal===dialog)status.textContent='无法读取本地记录，浏览器可能限制了站点存储';return;}
+            if(modal!==dialog||detailName!==item.name)return;
+            if(!record){status.textContent='还没有这套美化的 CSS 修改记录';detail.append(el('p',{className:'bs-theme-cover-note'},'从本次更新开始，在酒馆的“自定义 CSS”编辑器修改内容后，会自动保留最近一次编辑前、编辑后的两版。更新前已丢失的内容无法追溯。'));return;}
+            const base=cache.find(theme=>theme.name===item.name)??{name:item.name};
+            const pair=el('div',{className:'bs-theme-compare-grid'}),code=el('div',{className:'bs-theme-code-grid',hidden:true});
+            for(const [title,css] of [['修改前',record.before],['修改后',record.after]]){
+                const pane=el('section',{className:'bs-theme-compare-pane'}),preview=makePreview(item.name);pane.append(el('b',{},title),preview);pair.append(pane);
+                const label=el('label',{},`${title} CSS`),textarea=el('textarea',{readOnly:true,value:css,className:'text_pole bs-theme-code'});textarea.setAttribute('aria-label',`${title} CSS`);label.append(textarea);code.append(label);
+            }
+            const actions=el('div',{className:'bs-theme-actions'}),toggle=el('button',{type:'button',className:'menu_button'},'查看 CSS 代码');
+            toggle.onclick=()=>{code.hidden=!code.hidden;toggle.textContent=code.hidden?'查看 CSS 代码':'收起 CSS 代码';};
+            actions.append(toggle);
+            for(const [title,css] of [['恢复修改前 CSS',record.before],['恢复修改后 CSS',record.after]]){
+                const restore=el('button',{type:'button',className:'menu_button'},title);
+                restore.onclick=async()=>{restore.disabled=true;try{await history.restore(item.name,css);status.textContent='已恢复到当前 CSS 编辑器并应用。要更新美化文件，请使用酒馆原来的保存按钮。';}catch(error){status.textContent=error.message;}finally{restore.disabled=false;}};
+                actions.append(restore);
+            }
+            const time=new Date(record.updatedAt).toLocaleString();
+            status.textContent=`最近记录：${time} · 只保留最近一次修改的两版`;
+            detail.append(pair,actions,code,el('small',{className:'bs-theme-cover-note'},'对比直接渲染两版 CSS，忽略上传封面。记录保存在当前浏览器，清理站点数据会丢失；恢复到编辑器不会覆盖已保存的主题文件。'));
+            const hosts=pair.querySelectorAll('.bs-theme-thumb');populatePreview(hosts[0],item.name,{...base,custom_css:record.before},true);populatePreview(hosts[1],item.name,{...base,custom_css:record.after},true);
         }
         // Keep closures alive only for this modal, and release resources on close.
         modalObserver=new MutationObserver(()=>{if(detailName===null&&modal===dialog)renderGrid();});
         if(native)modalObserver.observe(native,{childList:true,subtree:true});
-        try{await loadThemes();if(modal===dialog)renderGrid();}catch(error){if(modal===dialog){status.textContent=`${error.message}。仍可管理标签、上传封面和应用美化。`;renderGrid();status.textContent='美化数据读取失败：可刷新重试；仍可使用自定义封面与标签';}}
+        try{await loadThemes();if(modal===dialog){const item=initialCompare&&names().find(item=>item.name===initialCompare);if(item)await renderCompare(item);else renderGrid();}}catch(error){if(modal===dialog){renderGrid();status.textContent='美化数据读取失败：可刷新重试；仍可使用自定义封面与标签';}}
     }
-    return {refresh,destroy(){disposed=true;modal?.close();optionObserver?.disconnect();modalObserver?.disconnect();cleanupPreviews();document.removeEventListener('change',onChange);document.removeEventListener('click',onClick,true);native?.classList.remove('bs-theme-native-hidden');launch?.remove();}};
+    return {refresh,destroy(){disposed=true;history.destroy();modal?.close();optionObserver?.disconnect();modalObserver?.disconnect();cleanupPreviews();document.removeEventListener('change',onChange);document.removeEventListener('click',onClick,true);native?.classList.remove('bs-theme-native-hidden');launch?.remove();historyLaunch?.remove();}};
 }
