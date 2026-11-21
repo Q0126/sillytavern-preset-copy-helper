@@ -75,11 +75,12 @@ export function createPresetTools({ context, settings, onRefresh }) {
     function refresh() {
         for (const [list, state] of bars) if (!list.isConnected) { state.bar.remove(); bars.delete(list); }
         for (const list of document.querySelectorAll(LIST)) {
+            list.classList.toggle('bs-pc-compact-list',settings.search);
             let state = bars.get(list);
             if (!state || !state.bar.isConnected) {
                 const bar = el('div', { className:'bs-pc-search' });
                 const row = el('div', { className:'bs-pc-search-row' });
-                const input = el('input', { type:'search', className:'text_pole', value:query, placeholder:'搜索当前预设条目：名称 / 内容' });
+                const input = el('input', { type:'search', className:'text_pole', value:query, placeholder:'搜索条目名称 / 内容' });
                 input.setAttribute('aria-label', '搜索当前预设条目');
                 const clear = () => { query=''; input.value=''; refresh(); input.focus(); };
                 row.append(input, button('清除', clear), button('批量管理', () => showManager().catch(error => notify(error.message))));
@@ -114,7 +115,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
                     item.append(text, edit); state.results.append(item);
                 }
             }
-            const message = terms.length ? `找到 ${found.length} / ${data.length} 条${found.length ? '' : '，试试其他关键词'}` : `共 ${data.length} 条 · 支持名称与内容、多关键词`;
+            const message = terms.length ? `找到 ${found.length} / ${data.length} 条${found.length ? '' : '，试试其他关键词'}` : `${data.length} 条`;
             if (state.count.textContent !== message) state.count.textContent = message;
         }
         switchProfiles.refresh();
@@ -287,7 +288,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
     }
     function destroy() {
         destroyed=true;switchProfiles.destroy();
-        for(const [list,state] of bars) {list.classList.remove('bs-pc-search-list-hidden');state.bar.remove();}
+        for(const [list,state] of bars) {list.classList.remove('bs-pc-search-list-hidden','bs-pc-compact-list');state.bar.remove();}
         bars.clear();modal?.close();modal?.remove();modal=null;
     }
     return { refresh, destroy };

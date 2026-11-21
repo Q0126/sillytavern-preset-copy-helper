@@ -87,7 +87,7 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
                 actions.append(chip);
             }
             host.append(actions);
-            host.append(el('small',{role:'status'},message || (list.length?'点击角色名字，一键切换条目开关':'把当前开关存成角色方案，以后点名字切换')));
+            host.append(el('small',{role:'status',hidden:!message},message));
         }
         if(dialog?.open) {
             dialog.querySelectorAll('button,input').forEach(node=>{node.disabled=busy;});

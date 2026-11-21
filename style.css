@@ -1,6 +1,6 @@
-.bs-pc-search { display:flex; flex-direction:column; gap:6px; margin:10px 0; }
+.bs-pc-search { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 8px; margin:6px 0; min-width:0; }
 .bs-pc-search[hidden] { display:none !important; }
-.bs-pc-search-row { display:flex; align-items:center; gap:6px; }
+.bs-pc-search-row { grid-column:1 / -1; display:flex!important; flex-wrap:nowrap!important; align-items:center; gap:4px; min-width:0; }
 .bs-pc-search input { flex:1; min-width:0; margin:0; }
 .bs-pc-search button { margin:0; cursor:pointer; }
 .bs-pc-search small { opacity:.75; }
@@ -88,9 +88,15 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 
 /* Preset tools: search results do not depend on third-party grouping DOM. */
 .bs-pc-search-list-hidden { display:none!important; }
-.bs-pc-search-row { flex-wrap:wrap; }
-.bs-pc-search-row > input { flex:1 1 150px; width:0; }
-.bs-pc-search-row > button { flex:none; width:auto!important; white-space:nowrap; }
+.bs-pc-search-row > input.text_pole { box-sizing:border-box; flex:1 1 0!important; width:0!important; min-width:0!important; height:30px!important; min-height:0!important; margin:0!important; padding:4px 6px!important; font-size:13px!important; line-height:20px!important; }
+.bs-pc-search-row > button { box-sizing:border-box; flex:0 0 auto!important; width:auto!important; height:30px!important; min-height:0!important; margin:0!important; padding:4px 6px!important; font-size:12px!important; line-height:20px!important; white-space:nowrap!important; writing-mode:horizontal-tb!important; }
+.bs-pc-search > .bs-pc-count { grid-column:2; grid-row:2; align-self:start; padding:5px 0 0; margin:0!important; font-size:11px!important; line-height:18px!important; white-space:nowrap; }
+.bs-pc-search > .bs-pc-results { grid-column:1 / -1; }
+.bs-pc-compact-list > [class*="prompt_manager_list_head"] { display:flex!important; flex-direction:row!important; align-items:center!important; justify-content:space-between; gap:6px; height:auto!important; min-height:0!important; padding:6px 8px!important; margin:0!important; line-height:1.4!important; }
+.bs-pc-compact-list > [class*="prompt_manager_list_head"] > span { flex:0 0 auto!important; width:auto!important; min-height:0!important; margin:0!important; padding:0!important; white-space:nowrap; }
+.bs-pc-compact-list > [class*="prompt_manager_list_head"] > span:nth-child(2) { flex:1 1 0!important; }
+.bs-pc-compact-list > [class*="prompt_manager_list_separator"] { min-height:0!important; height:auto!important; margin:0!important; padding:0!important; }
+.bs-pc-compact-list > [class*="prompt_manager_list_separator"] hr { margin:3px 0!important; }
 .bs-pc-results { max-height:55dvh; overflow:auto; overscroll-behavior:contain; }
 .bs-pc-results[hidden] { display:none!important; }
 .bs-pc-result { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--SmartThemeBorderColor,#7775); }
@@ -109,7 +115,10 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-preset-row > input { width:100%; min-width:0; margin:0; font-size:.85em!important; }
 
 /* Named switch schemes for the shared preset. */
-.bs-pc-switcher { display:flex; flex-direction:column; gap:5px; padding:7px 0; }
+.bs-pc-switcher { grid-column:1; grid-row:2; display:flex; flex-direction:column; min-width:0; gap:2px; padding:0; }
+.bs-pc-switcher > .bs-pc-switch-actions { flex-wrap:nowrap!important; overflow-x:auto; min-width:0; padding:1px; scrollbar-width:none; }
+.bs-pc-switcher > .bs-pc-switch-actions > button { box-sizing:border-box; flex:0 0 auto!important; min-height:0!important; height:28px!important; padding:3px 6px!important; margin:0!important; font-size:12px!important; line-height:20px!important; white-space:nowrap!important; writing-mode:horizontal-tb!important; }
+.bs-pc-switcher > small[hidden] { display:none!important; }
 .bs-pc-switch-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .bs-pc-switch-actions > button { flex:none; width:auto!important; margin:0; padding:6px 10px; white-space:nowrap; font:inherit; }
 .bs-pc-switch-chip[aria-pressed="true"] { outline:1px solid var(--SmartThemeQuoteColor,currentColor); background:var(--SmartThemeChatTintColor,#7773); }
