@@ -1,0 +1,64 @@
+// Install jsdom in your test environment, then run: node tests/preset-tools.cjs
+// DOM integration tests use mocks of the documented/native ST module interfaces.
+const { JSDOM } = require('jsdom');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const switches=fs.readFileSync(path.join(__dirname,'../switch-profiles.js'),'utf8').replaceAll('export async function ','async function ').replaceAll('export function ','function ');
+const source = fs.readFileSync(path.join(__dirname,'../preset-tools.js'),'utf8');
+const tick = () => new Promise(resolve => setTimeout(resolve,0));
+async function main() {
+    const dom = new JSDOM(`<select id="settings_preset_openai"><option value="0">A</option><option value="1">B</option><option value="2">C</option></select><div id="completion_prompt_manager"><ul id="completion_prompt_manager_list"><section hidden><li data-pm-identifier="a">重复</li></section><li data-pm-identifier="b">重复</li><li data-pm-identifier="main">Main</li></ul></div>`, {runScripts:'outside-only'});
+    const w = dom.window, d = w.document;
+    w.structuredClone = structuredClone;
+    w.HTMLDialogElement.prototype.showModal=function(){this.open=true};
+    w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'))};
+    w.confirm=()=>true;
+    const model={preset_settings_openai:'A',prompts:[{identifier:'a',name:'重复',content:'only hidden needle',system_prompt:false},{identifier:'b',name:'重复',content:'other',system_prompt:false},{identifier:'main',name:'Main Prompt',content:'system',system_prompt:true}],prompt_order:[{character_id:100001,order:[{identifier:'a',enabled:false},{identifier:'b',enabled:true},{identifier:'main',enabled:true}]}]};
+    let failSettings=false, edited, saved=0;
+    const pm={serviceSettings:model,activeCharacter:{id:100001},getPromptOrderForCharacter(c){return model.prompt_order.find(p=>p.character_id===c.id)?.order ?? []},getPromptById(id){return model.prompts.find(p=>p.identifier===id)},isPromptDeletionAllowed(p){return p?.system_prompt===false},isPromptEditAllowed(){return true},async saveServiceSettings(){if(failSettings)throw Error('save failed');saved++},render(){},loadPromptIntoEditForm(p){edited=p.identifier},showPopup(){}};
+    const presets=[{prompts:[{content:'AAA'}]},{prompts:[{content:'BBB'}]},{prompts:[]}], preset_names={A:0,B:1,C:2};
+    const select=d.querySelector('select');
+    const manager={getAllPresets(){return [...select.options].map(o=>o.text)},getPresetList(){return {presets,preset_names,settings:model}},getCompletionPresetByName(name){return presets[preset_names[name]]},getSelectedPresetName(){return select.selectedOptions[0]?.text},async selectPreset(value){select.value=value;model.preset_settings_openai=this.getSelectedPresetName()}};
+    w.openaiModule={oai_settings:model,promptManager:pm};w.presetModule={getPresetManager:()=>manager};
+    const calls=[];let failDelete=false,failSave=false;
+    w.fetch=async(url,opts)=>{const data=JSON.parse(opts.body);calls.push({url,...data});const fail=url.endsWith('/delete')?failDelete:failSave;return {ok:!fail,status:fail?500:200,json:async()=>({name:data.name})}};
+    w.eval(switches+'\n'+source.replace("import { createSwitchProfiles } from './switch-profiles.js';\n",'').replaceAll('export function ','function ').replace("import('../../../openai.js')",'Promise.resolve(window.openaiModule)').replace("import('../../../preset-manager.js')",'Promise.resolve(window.presetModule)')+'\nwindow.exports={createPresetTools,currentPrompts,renamePlan};');
+    const settings={search:true,switchProfiles:[{id:'saved-scheme',presetName:'A',name:'Existing role',states:[{identifier:'a',enabled:false},{identifier:'b',enabled:true}]}]};let tool;
+    tool=w.exports.createPresetTools({context:{getRequestHeaders:()=>({'Content-Type':'application/json'}),saveSettingsDebounced(){}},settings,onRefresh:()=>tool?.refresh()});
+    await tick();tool.refresh();
+    const event=(node,type)=>node.dispatchEvent(new w.Event(type,{bubbles:true}));
+    const input=(node,value)=>{node.value=value;event(node,'input')};
+    const btn=(text,scope=d)=>{const b=[...scope.querySelectorAll('button')].find(n=>n.textContent===text);assert.ok(b,`button ${text}`);return b};
+    const draft=name=>[...d.querySelectorAll('.bs-preset-row > input')].find(n=>n.getAttribute('aria-label')===`新名称：${name}`);
+    const check=name=>{const n=[...d.querySelectorAll('.bs-preset-name input')].find(n=>n.getAttribute('aria-label')===`选择 ${name}`);assert.ok(n,name);n.checked=true;event(n,'change')};
+    const status=()=>d.querySelector('.bs-preset-modal [role=status]').textContent;
+    const run=async text=>{btn(text).click();await tick();await tick()};
+    const search=d.querySelector('input[type=search]');
+    input(search,'HIDDEN needle');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 1 \/ 3/);assert.equal(d.querySelectorAll('.bs-pc-result').length,1);btn('编辑').click();assert.equal(edited,'a');
+    d.querySelector('ul').innerHTML='<section hidden><li data-pm-identifier="a">重复</li></section>';tool.refresh();assert.equal(d.querySelectorAll('.bs-pc-result').length,1);
+    input(search,'missing');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0/);btn('清除').click();assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
+    await run('批量管理');input(draft('A'),'Alpha');input(draft('B'),'Beta');await run('保存改名');assert.match(status(),/已改名 2/);
+    assert.deepEqual(calls.filter(c=>c.url.endsWith('/save')).map(c=>c.preset.prompts[0].content),['AAA','BBB']);assert.equal(model.preset_settings_openai,'Alpha');assert.equal(settings.switchProfiles[0].presetName,'Alpha');assert.equal(model.prompts[0].content,'only hidden needle');
+    const count=calls.length;input(draft('Alpha'),'C');await run('保存改名');assert.equal(calls.length,count);assert.match(status(),/重复|原名称/);
+    await run('当前条目');input(draft('重复'),'Renamed');await run('保存改名');assert.equal(model.prompts[0].name,'Renamed');assert.equal(saved,1);
+    check('Main Prompt');await run('删除已选');assert.equal(model.prompts.length,3);assert.match(status(),/内置/);
+    await run('取消选择');check('Renamed');await run('删除已选');assert.equal(model.prompts.length,2);assert.equal(model.prompt_order[0].order.some(p=>p.identifier==='a'),false);
+    failSettings=true;check('重复');await run('删除已选');assert.equal(status(),'save failed');assert.equal(model.prompts.length,2);assert.equal(model.prompt_order[0].order.length,2);failSettings=false;
+    await run('整份预设');failDelete=true;check('Beta');await run('删除已选');assert.match(status(),/500/);assert.ok(preset_names.Beta!==undefined);assert.equal(select.options.length,3);
+    input(draft('Beta'),'Gamma');await run('保存改名');assert.ok(preset_names.Gamma!==undefined);assert.ok(preset_names.Beta!==undefined);assert.match(status(),/已完成 0/);
+    failDelete=false;await run('取消选择');check('Gamma');await run('删除已选');assert.equal(preset_names.Gamma,undefined);
+    failSave=true;input(draft('Beta'),'Delta');await run('保存改名');assert.equal(preset_names.Delta,undefined);assert.ok(preset_names.Beta!==undefined);
+    failSave=false;
+    // A rejected confirmation changes neither server files nor local state.
+    const beforeCancel=calls.length;w.confirm=()=>false;await run('取消选择');check('C');await run('删除已选');assert.equal(calls.length,beforeCancel);w.confirm=()=>true;
+    // Prefix/suffix are previewed before saving, and apply only to checked rows.
+    await run('取消选择');check('C');input(d.querySelector('[placeholder="统一前缀"]'),'pre-');input(d.querySelector('[placeholder="统一后缀"]'),'-post');await run('应用到已选名称');assert.equal(draft('C').value,'pre-C-post');assert.equal(draft('Alpha').value,'Alpha');
+    await run('取消选择');check('Alpha');await run('删除已选');assert.equal(preset_names.Alpha,undefined);assert.equal(settings.switchProfiles.length,0);assert.ok(model.preset_settings_openai);assert.notEqual(model.preset_settings_openai,'Alpha');
+    await run('全选搜索结果');const beforeAll=calls.length;await run('删除已选');assert.equal(calls.length,beforeAll);assert.match(status(),/保留/);
+    await run('当前条目');const oldName=model.prompts[0].name;input(draft(oldName),'Should not change');pm.activeCharacter={id:100002};await run('保存改名');assert.equal(model.prompts[0].name,oldName);assert.match(status(),/切换/);pm.activeCharacter={id:100001};
+    btn('关闭').click();input(search,'system');tool.destroy();assert.equal(d.querySelectorAll('.bs-pc-search').length,0);assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
+    dom.window.close();
+    console.log('PASS: model-based folded search, rerender, no-results/clear, edit, batch file rename, own-content preservation, duplicate protection, entry rename/delete, built-in protection, rollback, server errors, partial rename, active-preset guard, cleanup.');
+}
+main().catch(error=>{console.error(error);process.exitCode=1});

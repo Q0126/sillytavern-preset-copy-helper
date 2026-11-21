@@ -1,14 +1,15 @@
 import { createThemeGallery } from './theme-gallery.js';
-// SillyTavern UI extension. No request interception, prompt mutation or chat writes.
+import { createPresetTools } from './preset-tools.js';
+// SillyTavern UI extension. Preset changes only occur after explicit batch or switch-scheme actions.
 const KEY = 'baishui_preset_copy';
 const defaults = { search: true, protect: true, themeGallery: true };
 const LIST = '[id$="prompt_manager_list"]';
 const BODY = '#chat .mes .mes_text';
 const EXCLUDE = 'script,style,button,input,textarea,select,iframe,svg,[hidden],[contenteditable="true"],.code-copy,.copy-code-button,.bs-pc-message';
-let ctx, settings, openai, observer, scheduled = false, searchQuery = '', running = false;
+let ctx, settings, observer, scheduled = false, running = false;
+let presetTools = null;
 let themeGallery = null, savedRange = null, touchScroll = null, restoreTimer;
-const listeners = [], subscriptions = [], sortableStates = new Map();
-const promptIndex = new WeakMap();
+const listeners = [], subscriptions = [];
 
 function listen(target, type, handler, options) {
     target.addEventListener(type, handler, options);
@@ -29,65 +30,9 @@ function queueRefresh() {
     scheduled = true;
     requestAnimationFrame(() => { scheduled = false; if(running) refresh(); });
 }
-function toggleSorting(list, filtered) {
-    const jq = window.jQuery;
-    if (!jq?.fn?.sortable || !jq(list).hasClass('ui-sortable')) return;
-    if (filtered && !sortableStates.has(list)) {
-        sortableStates.set(list, jq(list).sortable('option', 'disabled'));
-        jq(list).sortable('option', 'disabled', true);
-    } else if (!filtered && sortableStates.has(list)) {
-        jq(list).sortable('option', 'disabled', sortableStates.get(list));
-        sortableStates.delete(list);
-    }
-}
 function refresh() {
     mountSettings();
-    for (const list of sortableStates.keys()) if (!list.isConnected) sortableStates.delete(list);
-    for (const list of document.querySelectorAll(LIST)) {
-        let bar = list.parentElement.querySelector(':scope > .bs-pc-search');
-        if (!bar && settings.search) {
-            bar = element('div', { className:'bs-pc-search' });
-            const row = element('div', { className:'bs-pc-search-row' });
-            const input = element('input', { type:'search', className:'text_pole', placeholder:'搜索当前预设条目：名称 / 内容', value:searchQuery });
-            input.setAttribute('aria-label', '搜索当前预设条目');
-            const clear = element('button', { type:'button', className:'menu_button', title:'清除搜索' }, '清除');
-            row.append(input, clear);
-            const count = element('small', { role:'status', className:'bs-pc-count' });
-            bar.append(row, count);
-            list.before(bar);
-            input.addEventListener('input', () => { searchQuery = input.value; refresh(); });
-            clear.addEventListener('click', () => { searchQuery = ''; input.value = ''; refresh(); input.focus(); });
-            input.addEventListener('keydown', e => { if (e.key === 'Escape') { searchQuery = ''; input.value = ''; refresh(); e.stopPropagation(); } });
-        }
-        if (bar) bar.hidden = !settings.search;
-        const terms = settings.search ? normalized(searchQuery).trim().split(/\s+/u).filter(Boolean) : [];
-        const prompts = terms.length ? openai?.promptManager?.serviceSettings?.prompts ?? openai?.oai_settings?.prompts ?? [] : [];
-        const byId = new Map(prompts.filter(Boolean).map(p => [p.identifier, p]));
-        const rows = [...list.querySelectorAll(':scope > [data-pm-identifier]')];
-        let found = 0;
-        for (const row of rows) {
-            const prompt = byId.get(row.dataset.pmIdentifier);
-            let haystack = '';
-            if (terms.length) {
-                if (prompt) {
-                    let entry = promptIndex.get(prompt);
-                    if (!entry || entry.name !== prompt.name || entry.content !== prompt.content) {
-                        entry = { name:prompt.name, content:prompt.content, text:normalized([prompt.name,prompt.content].join('\n')) };
-                        promptIndex.set(prompt, entry);
-                    }
-                    haystack = entry.text;
-                } else haystack = normalized(row.querySelector('[data-pm-name]')?.dataset.pmName ?? row.textContent);
-            }
-            const matches = terms.every(term => haystack.includes(term));
-            row.classList.toggle('bs-pc-hidden', !matches);
-            if (matches) found++;
-        }
-        list.classList.toggle('bs-pc-filtering', !!terms.length);
-        toggleSorting(list, !!terms.length);
-        const count = bar?.querySelector('.bs-pc-count');
-        const text = terms.length ? `找到 ${found} / ${rows.length} 条${found ? '' : '，试试其他关键词'} · 清除后可拖动排序` : `共 ${rows.length} 条 · 支持名称与内容，多词用空格分隔`;
-        if (count && count.textContent !== text) count.textContent = text;
-    }
+    presetTools?.refresh();
     themeGallery?.refresh();
 }
 
@@ -154,7 +99,7 @@ function mountSettings() {
     header.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); header.click(); }
     });
-    for(const [key,label] of [['search','预设条目关键词搜索'],['protect','正文复制保护与滚动选区保留'],['themeGallery','美化预览、标签与搜索']]) {
+    for(const [key,label] of [['search','预设搜索、批量管理与角色方案'],['protect','正文复制保护与滚动选区保留'],['themeGallery','美化预览、标签与搜索']]) {
         const line=element('label', { className:'checkbox_label' }); const input=element('input',{type:'checkbox',checked:settings[key]});
         input.onchange=()=>{settings[key]=input.checked;save();}; line.append(input,element('span', {}, label)); content.append(line);
     }
@@ -172,11 +117,12 @@ function init() {
     settings=store[KEY] ??= {};
     for(const [k,v] of Object.entries(defaults)) if(typeof settings[k]!=='boolean') settings[k]=v;
     delete settings.buttons;
+    presetTools = createPresetTools({ context:ctx, settings, onRefresh:queueRefresh });
     themeGallery = createThemeGallery({ context:ctx, settings, onSave:() => ctx.saveSettingsDebounced?.() });
     applySettings(); mountSettings(); refresh();
     observer=new MutationObserver(records=>{
         // Child-list only: filter class/style changes must not trigger a refresh loop.
-        if(records.some(r=>r.target.nodeType===1 && !r.target.closest('.bs-pc-search,.bs-theme-modal,.bs-theme-launch') && !r.target.closest('.mes_text') && (r.target.closest('#completion_prompt_manager,#chat,#UI-presets-block') || [...r.addedNodes].some(n=>n.nodeType===1 && (n.matches?.(LIST+',#chat,#completion_prompt_manager,#themes,#UI-presets-block') || n.querySelector?.(LIST)))))) queueRefresh();
+        if(records.some(r=>r.target.nodeType===1 && !r.target.closest('.bs-pc-search,.bs-preset-modal,.bs-theme-modal,.bs-theme-launch') && !r.target.closest('.mes_text') && (r.target.closest('#completion_prompt_manager,#chat,#UI-presets-block') || [...r.addedNodes].some(n=>n.nodeType===1 && (n.matches?.(LIST+',#chat,#completion_prompt_manager,#themes,#UI-presets-block') || n.querySelector?.(LIST)))))) queueRefresh();
     });
     observer.observe(document.body,{childList:true,subtree:true});
     listen(document,'copy',onCopy,true);
@@ -196,18 +142,16 @@ function init() {
     },{capture:true,passive:true});
     for(const type of ['pointerup','pointercancel']) listen(document,type,()=>{if(touchScroll){clearTimeout(restoreTimer);restoreTimer=setTimeout(()=>{restoreSelection();touchScroll=null;},180);}},true);
     const refreshEvents=['CHAT_CHANGED','CHARACTER_MESSAGE_RENDERED','USER_MESSAGE_RENDERED','MESSAGE_EDITED','MESSAGE_SWIPED','GENERATION_ENDED','PRESET_CHANGED','OAI_PRESET_CHANGED_AFTER','SETTINGS_UPDATED'];
-    for(const name of refreshEvents){const type=ctx.event_types?.[name];if(type && ctx.eventSource?.on){ctx.eventSource.on(type,queueRefresh);subscriptions.push([type,queueRefresh]);}}
-    // Optional, read-only access for searching hidden prompt CONTENT. UI still works by name if this internal module changes.
-    import('../../../openai.js').then(module=>{openai=module;queueRefresh();}).catch(error=>console.warn('[白水预设搜索] 内容索引不可用，只搜索名称',error));
+    for(const name of refreshEvents){const type=(ctx.eventTypes ?? ctx.event_types)?.[name];if(type && ctx.eventSource?.on){ctx.eventSource.on(type,queueRefresh);subscriptions.push([type,queueRefresh]);}}
+
 }
 export function onDisable() {
     running=false;
     observer?.disconnect();observer=null;
     for(const remove of listeners.splice(0)) remove();
     for(const [type,fn] of subscriptions.splice(0)) ctx?.eventSource?.removeListener?.(type,fn);
-    clearTimeout(restoreTimer);themeGallery?.destroy();themeGallery=null;document.body.classList.remove('bs-pc-protect');
+    clearTimeout(restoreTimer);presetTools?.destroy();presetTools=null;themeGallery?.destroy();themeGallery=null;document.body.classList.remove('bs-pc-protect');
     document.querySelectorAll('.bs-pc-hidden').forEach(el=>el.classList.remove('bs-pc-hidden'));
-    for(const list of sortableStates.keys()) toggleSorting(list,false);
     document.querySelectorAll('.bs-pc-search,.bs-pc-message,#bs-pc-settings').forEach(el=>el.remove());
 }
 export function onEnable() { init(); }
