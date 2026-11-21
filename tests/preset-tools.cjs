@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const switches=fs.readFileSync(path.join(__dirname,'../switch-profiles.js'),'utf8').replaceAll('export async function ','async function ').replaceAll('export function ','function ');
+const nativeSearch=fs.readFileSync(path.join(__dirname,'../prompt-search.js'),'utf8').replaceAll('export function ','function ');
 const source = fs.readFileSync(path.join(__dirname,'../preset-tools.js'),'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve,0));
 async function main() {
@@ -23,7 +24,7 @@ async function main() {
     w.openaiModule={oai_settings:model,promptManager:pm};w.presetModule={getPresetManager:()=>manager};
     const calls=[];let failDelete=false,failSave=false;
     w.fetch=async(url,opts)=>{const data=JSON.parse(opts.body);calls.push({url,...data});const fail=url.endsWith('/delete')?failDelete:failSave;return {ok:!fail,status:fail?500:200,json:async()=>({name:data.name})}};
-    w.eval(switches+'\n'+source.replace("import { createSwitchProfiles } from './switch-profiles.js';\n",'').replaceAll('export function ','function ').replace("import('../../../openai.js')",'Promise.resolve(window.openaiModule)').replace("import('../../../preset-manager.js')",'Promise.resolve(window.presetModule)')+'\nwindow.exports={createPresetTools,currentPrompts,renamePlan};');
+    w.eval(switches+'\n'+nativeSearch+'\n'+source.replace("import { createNativePromptSearch } from './prompt-search.js';\n",'').replace("import { createSwitchProfiles } from './switch-profiles.js';\n",'').replaceAll('export function ','function ').replace("import('../../../openai.js')",'Promise.resolve(window.openaiModule)').replace("import('../../../preset-manager.js')",'Promise.resolve(window.presetModule)')+'\nwindow.exports={createPresetTools,currentPrompts,renamePlan};');
     const settings={search:true,switchProfiles:[{id:'saved-scheme',presetName:'A',name:'Existing role',states:[{identifier:'a',enabled:false},{identifier:'b',enabled:true}]}]};let tool;
     tool=w.exports.createPresetTools({context:{getRequestHeaders:()=>({'Content-Type':'application/json'}),saveSettingsDebounced(){}},settings,onRefresh:()=>tool?.refresh()});
     await tick();tool.refresh();
@@ -43,19 +44,23 @@ async function main() {
     const pickerSearch=d.querySelector('[aria-label="搜索预设"]');input(pickerSearch,'B');assert.equal(d.querySelectorAll('.bs-preset-option').length,1);
     d.querySelector('.bs-preset-option').click();await tick();assert.equal(model.preset_settings_openai,'B');assert.equal(d.querySelector('.bs-preset-picker'),null);
     await openPicker();[...d.querySelectorAll('.bs-preset-option')].find(n=>n.querySelector('.bs-preset-option-name').textContent==='A').click();await tick();assert.equal(model.preset_settings_openai,'A');assert.equal(calls.length,0);
-    const search=d.querySelector('input[type=search]');
-    input(search,'HIDDEN needle');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 1 \/ 3/);assert.equal(d.querySelectorAll('.bs-pc-result').length,1);d.querySelector('.bs-pc-result-edit').click();assert.equal(edited,'a');
-    // Search matches contents but renders only a compact name row with real controls.
-    assert.equal(d.querySelector('.bs-pc-results').textContent.includes('only hidden needle'),false);
+    const search=d.querySelector('[aria-label="搜索当前预设条目"]');assert.equal(search.type,'text');assert.equal(d.querySelectorAll('.bs-pc-search-clear').length,1);
+    const originalA=d.querySelector('[data-pm-identifier="a"]');
+    originalA.innerHTML='<span class="completion_prompt_manager_prompt_name" data-pm-name="重复">重复</span><span class="prompt-manager-edit-action fa-solid fa-pencil"></span><span class="prompt-manager-toggle-action fa-solid fa-toggle-off"></span><span class="prompt_manager_prompt_tokens">114</span>';
+    const originalEdit=originalA.querySelector('.prompt-manager-edit-action');originalEdit.addEventListener('click',()=>{edited='a'});
+    input(search,'HIDDEN needle');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 1 \/ 3/);
+    assert.equal(d.querySelector('[data-pm-identifier="a"]'),originalA);assert.equal(originalA.classList.contains('bs-pc-hidden'),false);assert.equal(originalA.parentElement.classList.contains('bs-pc-search-reveal'),true);
+    originalEdit.click();assert.equal(edited,'a');assert.equal(d.querySelector('.bs-pc-results'),null);
+    assert.equal(d.querySelectorAll('.bs-pc-result-toggle').length,0);
+    d.querySelector('ul').innerHTML='<section hidden><li data-pm-identifier="a">重复</li></section>';tool.refresh();assert.equal(d.querySelector('[data-pm-identifier="a"]').classList.contains('bs-pc-hidden'),false);
+    // Missing / virtual rows use the native classes and actions, never custom controls.
     const beforePrompts=JSON.stringify(model.prompts),beforeIds=model.prompt_order[0].order.map(p=>p.identifier).join(',');
-    d.querySelector('.bs-pc-result-toggle').click();assert.equal(d.querySelector('.bs-pc-result-toggle').disabled,true);await tick();await tick();
-    assert.equal(model.prompt_order[0].order[0].enabled,true);assert.equal(d.querySelector('.bs-pc-result-toggle').checked,true);
-    failSettings=true;d.querySelector('.bs-pc-result-toggle').click();await tick();await tick();
-    assert.equal(model.prompt_order[0].order[0].enabled,true);assert.equal(d.querySelector('.bs-pc-result-toggle').checked,true);assert.match(d.querySelector('.bs-pc-count').textContent,/保存失败/);
-    failSettings=false;d.querySelector('.bs-pc-result-toggle').click();await tick();await tick();assert.equal(model.prompt_order[0].order[0].enabled,false);
+    input(search,'other');let fallback=d.querySelector('[data-bs-pc-fallback]');assert.ok(fallback.classList.contains('completion_prompt_manager_prompt'));fallback.querySelector('.prompt-manager-edit-action').click();assert.equal(edited,'b');
+    fallback.querySelector('.prompt-manager-toggle-action').click();await tick();await tick();assert.equal(model.prompt_order[0].order[1].enabled,false);
+    d.querySelector('[data-bs-pc-fallback] .prompt-manager-toggle-action').click();await tick();await tick();assert.equal(model.prompt_order[0].order[1].enabled,true);
+    failSettings=true;d.querySelector('[data-bs-pc-fallback] .prompt-manager-toggle-action').click();await tick();await tick();assert.equal(model.prompt_order[0].order[1].enabled,true);failSettings=false;
     assert.equal(JSON.stringify(model.prompts),beforePrompts);assert.equal(model.prompt_order[0].order.map(p=>p.identifier).join(','),beforeIds);
-    input(search,'system');assert.equal(d.querySelector('.bs-pc-result-toggle').disabled,true);input(search,'HIDDEN needle');
-    d.querySelector('ul').innerHTML='<section hidden><li data-pm-identifier="a">重复</li></section>';tool.refresh();assert.equal(d.querySelectorAll('.bs-pc-result').length,1);
+    input(search,'system');assert.equal(d.querySelector('[data-bs-pc-fallback] .prompt-manager-toggle-action'),null);input(search,'HIDDEN needle');
     input(search,'missing');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0/);btn('×').click();assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
     d.querySelector('#bs-preset-launch').click();await tick();await run('批量管理');input(draft('A'),'Alpha');input(draft('B'),'Beta');await run('保存改名');assert.match(status(),/已改名 2/);
     assert.deepEqual(calls.filter(c=>c.url.endsWith('/save')).map(c=>c.preset.prompts[0].content),['AAA','BBB']);assert.equal(model.preset_settings_openai,'Alpha');assert.equal(settings.switchProfiles[0].presetName,'Alpha');assert.equal(model.prompts[0].content,'only hidden needle');

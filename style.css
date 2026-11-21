@@ -6,7 +6,6 @@
 .bs-pc-search-clear:hover { background:var(--SmartThemeBorderColor,#7772); }
 .bs-pc-search-clear[hidden],.bs-pc-count[hidden] { display:none!important; }
 .bs-pc-search > .bs-pc-count { display:block; margin:4px 0; padding:0; font-size:12px; line-height:18px; opacity:.7; text-align:right; }
-.bs-pc-search > .bs-pc-results { width:100%; }
 .bs-pc-hidden { display:none !important; }
 .bs-pc-filtering .drag-handle { opacity:.25; pointer-events:none; }
 body.bs-pc-protect #chat .mes { -webkit-user-select:none; user-select:none; }
@@ -96,19 +95,6 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-pc-compact-list > [class*="prompt_manager_list_head"] > span:nth-child(2) { flex:1 1 0!important; }
 .bs-pc-compact-list > [class*="prompt_manager_list_separator"] { min-height:0!important; height:auto!important; margin:0!important; padding:0!important; }
 .bs-pc-compact-list > [class*="prompt_manager_list_separator"] hr { margin:3px 0!important; }
-.bs-pc-results { max-height:55dvh; overflow:auto; overscroll-behavior:contain; }
-.bs-pc-results[hidden] { display:none!important; }
-.bs-pc-result { box-sizing:border-box; display:flex!important; align-items:center; justify-content:space-between; gap:8px; width:100%; min-width:0; min-height:42px; margin:6px 0; padding:6px 8px; border:1px solid var(--SmartThemeBorderColor,#7774); border-radius:8px; }
-.bs-pc-result-name { flex:1 1 0!important; display:block; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:14px!important; line-height:22px!important; font-weight:400; }
-.bs-pc-result > .bs-pc-result-controls { display:flex!important; align-items:center; justify-content:flex-end; flex:0 0 auto!important; gap:6px; min-width:0; }
-.bs-pc-result .bs-pc-result-edit { box-sizing:border-box; display:grid; place-items:center; flex:none; width:30px!important; height:30px!important; min-height:0!important; margin:0!important; padding:0!important; border:0; border-radius:6px; color:inherit; background:transparent; font-size:14px!important; cursor:pointer; opacity:.65; }
-.bs-pc-result-edit:hover { opacity:1; background:var(--SmartThemeBorderColor,#7772); }
-.bs-pc-result input.bs-pc-result-toggle { box-sizing:border-box; position:relative; appearance:none!important; -webkit-appearance:none!important; display:block; flex:0 0 auto!important; width:32px!important; min-width:32px!important; height:18px!important; min-height:18px!important; margin:0!important; padding:0!important; border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:999px!important; background:var(--SmartThemeBorderColor,#8885)!important; cursor:pointer; }
-.bs-pc-result input.bs-pc-result-toggle::before { content:''!important; position:absolute; left:2px; top:2px; width:12px; height:12px; margin:0; border:0; border-radius:50%; background:#fff; box-shadow:0 1px 2px #0002; transform:none!important; }
-.bs-pc-result input.bs-pc-result-toggle:checked { background:var(--SmartThemeQuoteColor,#7398ae)!important; }
-.bs-pc-result input.bs-pc-result-toggle:checked::before { left:16px; }
-.bs-pc-result :is(button,input):disabled { opacity:.35; cursor:default; }
-.bs-pc-result :is(button,input):focus-visible { outline:2px solid var(--SmartThemeQuoteColor,currentColor); outline-offset:2px; }
 .bs-preset-modal .bs-preset-actions { display:flex; flex-wrap:wrap; gap:6px; padding:6px 14px; flex:none; }
 .bs-preset-modal > .text_pole { width:calc(100% - 28px); margin:6px 14px; flex:none; }
 .bs-preset-actions input { flex:1 1 100px; width:0; min-width:0; margin:0; }
@@ -164,5 +150,6 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-switch-modal .bs-preset-actions { padding:8px 16px; }
 .bs-switch-modal .bs-preset-actions > input { min-height:38px; font-size:14px; }
 .bs-switch-modal .bs-preset-actions > button { min-height:38px; font-size:13px!important; }
-.bs-pc-search-row > input[type="search"]::-webkit-search-cancel-button { -webkit-appearance:none; appearance:none; }
-.bs-pc-result input.bs-pc-result-toggle::after { content:none!important; display:none!important; }
+.bs-pc-filtering .bs-pc-search-reveal { display:block!important; height:auto!important; max-height:none!important; visibility:visible!important; content-visibility:visible!important; }
+.bs-pc-filtering .drag-handle { pointer-events:none!important; opacity:.25; }
+.bs-pc-search-row > input::-ms-clear { display:none!important; }
