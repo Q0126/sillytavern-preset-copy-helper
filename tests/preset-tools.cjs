@@ -16,7 +16,7 @@ async function main() {
     w.confirm=()=>true;
     const model={preset_settings_openai:'A',prompts:[{identifier:'a',name:'重复',content:'only hidden needle',system_prompt:false},{identifier:'b',name:'重复',content:'other',system_prompt:false},{identifier:'main',name:'Main Prompt',content:'system',system_prompt:true}],prompt_order:[{character_id:100001,order:[{identifier:'a',enabled:false},{identifier:'b',enabled:true},{identifier:'main',enabled:true}]}]};
     let failSettings=false, edited, saved=0;
-    const pm={serviceSettings:model,activeCharacter:{id:100001},getPromptOrderForCharacter(c){return model.prompt_order.find(p=>p.character_id===c.id)?.order ?? []},getPromptById(id){return model.prompts.find(p=>p.identifier===id)},isPromptDeletionAllowed(p){return p?.system_prompt===false},isPromptEditAllowed(){return true},async saveServiceSettings(){if(failSettings)throw Error('save failed');saved++},render(){},loadPromptIntoEditForm(p){edited=p.identifier},showPopup(){}};
+    const pm={serviceSettings:model,activeCharacter:{id:100001},getPromptOrderForCharacter(c){return model.prompt_order.find(p=>p.character_id===c.id)?.order ?? []},getPromptById(id){return model.prompts.find(p=>p.identifier===id)},isPromptDeletionAllowed(p){return p?.system_prompt===false},isPromptEditAllowed(){return true},isPromptToggleAllowed(p){return p.identifier!=='main'},async saveServiceSettings(){if(failSettings)throw Error('save failed');saved++},render(){},loadPromptIntoEditForm(p){edited=p.identifier},showPopup(){}};
     const presets=[{prompts:[{content:'AAA'}]},{prompts:[{content:'BBB'}]},{prompts:[]}], preset_names={A:0,B:1,C:2};
     const select=d.querySelector('select');
     const manager={getAllPresets(){return [...select.options].map(o=>o.text)},getPresetList(){return {presets,preset_names,settings:model}},getCompletionPresetByName(name){return presets[preset_names[name]]},getSelectedPresetName(){return select.selectedOptions[0]?.text},async selectPreset(value){select.value=value;model.preset_settings_openai=this.getSelectedPresetName()}};
@@ -44,13 +44,23 @@ async function main() {
     d.querySelector('.bs-preset-option').click();await tick();assert.equal(model.preset_settings_openai,'B');assert.equal(d.querySelector('.bs-preset-picker'),null);
     await openPicker();[...d.querySelectorAll('.bs-preset-option')].find(n=>n.querySelector('.bs-preset-option-name').textContent==='A').click();await tick();assert.equal(model.preset_settings_openai,'A');assert.equal(calls.length,0);
     const search=d.querySelector('input[type=search]');
-    input(search,'HIDDEN needle');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 1 \/ 3/);assert.equal(d.querySelectorAll('.bs-pc-result').length,1);btn('编辑').click();assert.equal(edited,'a');
+    input(search,'HIDDEN needle');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 1 \/ 3/);assert.equal(d.querySelectorAll('.bs-pc-result').length,1);d.querySelector('.bs-pc-result-edit').click();assert.equal(edited,'a');
+    // Search matches contents but renders only a compact name row with real controls.
+    assert.equal(d.querySelector('.bs-pc-results').textContent.includes('only hidden needle'),false);
+    const beforePrompts=JSON.stringify(model.prompts),beforeIds=model.prompt_order[0].order.map(p=>p.identifier).join(',');
+    d.querySelector('.bs-pc-result-toggle').click();assert.equal(d.querySelector('.bs-pc-result-toggle').disabled,true);await tick();await tick();
+    assert.equal(model.prompt_order[0].order[0].enabled,true);assert.equal(d.querySelector('.bs-pc-result-toggle').checked,true);
+    failSettings=true;d.querySelector('.bs-pc-result-toggle').click();await tick();await tick();
+    assert.equal(model.prompt_order[0].order[0].enabled,true);assert.equal(d.querySelector('.bs-pc-result-toggle').checked,true);assert.match(d.querySelector('.bs-pc-count').textContent,/保存失败/);
+    failSettings=false;d.querySelector('.bs-pc-result-toggle').click();await tick();await tick();assert.equal(model.prompt_order[0].order[0].enabled,false);
+    assert.equal(JSON.stringify(model.prompts),beforePrompts);assert.equal(model.prompt_order[0].order.map(p=>p.identifier).join(','),beforeIds);
+    input(search,'system');assert.equal(d.querySelector('.bs-pc-result-toggle').disabled,true);input(search,'HIDDEN needle');
     d.querySelector('ul').innerHTML='<section hidden><li data-pm-identifier="a">重复</li></section>';tool.refresh();assert.equal(d.querySelectorAll('.bs-pc-result').length,1);
     input(search,'missing');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0/);btn('×').click();assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
     d.querySelector('#bs-preset-launch').click();await tick();await run('批量管理');input(draft('A'),'Alpha');input(draft('B'),'Beta');await run('保存改名');assert.match(status(),/已改名 2/);
     assert.deepEqual(calls.filter(c=>c.url.endsWith('/save')).map(c=>c.preset.prompts[0].content),['AAA','BBB']);assert.equal(model.preset_settings_openai,'Alpha');assert.equal(settings.switchProfiles[0].presetName,'Alpha');assert.equal(model.prompts[0].content,'only hidden needle');
     const count=calls.length;input(draft('Alpha'),'C');await run('保存改名');assert.equal(calls.length,count);assert.match(status(),/重复|原名称/);
-    await run('当前条目');input(draft('重复'),'Renamed');await run('保存改名');assert.equal(model.prompts[0].name,'Renamed');assert.equal(saved,1);
+    const writesBeforeRename=saved;await run('当前条目');input(draft('重复'),'Renamed');await run('保存改名');assert.equal(model.prompts[0].name,'Renamed');assert.equal(saved,writesBeforeRename+1);
     check('Main Prompt');await run('删除已选');assert.equal(model.prompts.length,3);assert.match(status(),/内置/);
     await run('取消选择');check('Renamed');await run('删除已选');assert.equal(model.prompts.length,2);assert.equal(model.prompt_order[0].order.some(p=>p.identifier==='a'),false);
     failSettings=true;check('重复');await run('删除已选');assert.equal(status(),'save failed');assert.equal(model.prompts.length,2);assert.equal(model.prompt_order[0].order.length,2);failSettings=false;

@@ -55,6 +55,7 @@ export function renamePlan(items, selected, drafts, allowDuplicates = false) {
 export function createPresetTools({ context, settings, onRefresh }) {
     let openai, presetModule, destroyed = false, query = '', modal, busy = false;
     const bars = new Map();
+    let resultToggleBusy=false,resultError='';
     let nativeSelect=null,presetLaunch=null,switchHost=null,selectObserver=null;
     const pm = () => openai?.promptManager;
     const fallback = () => openai?.oai_settings ?? context.chatCompletionSettings ?? {};
@@ -72,6 +73,23 @@ export function createPresetTools({ context, settings, onRefresh }) {
         if (!prompt || manager.isPromptEditAllowed?.(prompt) === false) return;
         manager.clearEditForm?.(); manager.clearInspectForm?.();
         manager.loadPromptIntoEditForm(prompt); manager.showPopup();
+    }
+    async function toggleSearchResult(identifier,enabled,sourcePrompts) {
+        if(resultToggleBusy||destroyed)return;
+        const manager=pm();
+        const prompt=manager?.getPromptById?.(identifier);
+        const order=manager?.activeCharacter && manager.getPromptOrderForCharacter?.(manager.activeCharacter);
+        const entry=order?.find(item=>item.identifier===identifier);
+        if(!entry || !prompt || manager.serviceSettings.prompts!==sourcePrompts || manager.isPromptToggleAllowed?.(prompt)===false) {
+            resultError='条目已变化或不允许切换，请重新搜索。';for(const state of bars.values())state.fingerprint='';refresh();return;
+        }
+        const previous=entry.enabled;
+        resultToggleBusy=true;resultError='';entry.enabled=enabled;
+        const counts=manager.tokenHandler?.getCounts?.();if(counts)counts[identifier]=null;
+        refresh();
+        try {await manager.saveServiceSettings();}
+        catch(error) {entry.enabled=previous;resultError=`开关保存失败：${error.message}`;}
+        finally {resultToggleBusy=false;manager.render(false);if(!destroyed){refresh();onRefresh();}}
     }
     function mountPresetPicker() {
         const select=document.querySelector('select#settings_preset_openai');
@@ -113,14 +131,14 @@ export function createPresetTools({ context, settings, onRefresh }) {
                 const row = el('div', { className:'bs-pc-search-row' });
                 const input = el('input', { type:'search', className:'text_pole', value:query, placeholder:'搜索条目名称 / 内容' });
                 input.setAttribute('aria-label', '搜索当前预设条目');
-                const clear = () => { query=''; input.value=''; refresh(); input.focus(); };
+                const clear = () => { resultError='';query=''; input.value=''; refresh(); input.focus(); };
                 const clearButton=button('×',clear);clearButton.className='bs-pc-search-clear';clearButton.title='清除搜索';clearButton.setAttribute('aria-label','清除搜索');
                 row.append(input,clearButton);
                 const count = el('small', { role:'status', className:'bs-pc-count' });
                 const results = el('div', { className:'bs-pc-results', hidden:true });
                 bar.append(row,count,results);list.before(bar);
                 state = { bar, input, clearButton, count, results, fingerprint:'' }; bars.set(list, state);
-                input.addEventListener('input', () => { query=input.value; refresh(); });
+                input.addEventListener('input', () => { resultError='';query=input.value; refresh(); });
                 input.addEventListener('keydown', event => { if (event.key==='Escape') { event.stopPropagation(); clear(); } });
             }
             state.bar.hidden = !settings.search;
@@ -135,19 +153,25 @@ export function createPresetTools({ context, settings, onRefresh }) {
             // so collapsed group ancestors and virtual rows cannot conceal a match.
             list.classList.toggle('bs-pc-search-list-hidden', !!terms.length);
             state.results.hidden = !terms.length;
-            const fingerprint = JSON.stringify([terms, found.map(p => [p.identifier,p.name,p.content,p.enabled])]);
+            const fingerprint = JSON.stringify([terms,resultToggleBusy,found.map(p => [p.identifier,p.name,p.content,p.enabled])]);
             if (fingerprint !== state.fingerprint) {
                 state.fingerprint = fingerprint; state.results.replaceChildren();
                 if (terms.length) for (const prompt of found) {
                     const item = el('div', { className:'bs-pc-result' });
-                    const text = el('div');
-                    text.append(el('strong', {}, prompt.name || '未命名条目'), el('small', {}, String(prompt.content ?? '').slice(0,180)));
-                    const edit = button('编辑', () => openEntry(prompt.identifier));
-                    edit.disabled = !pm()?.getPromptById?.(prompt.identifier) || pm()?.isPromptEditAllowed?.(prompt) === false;
-                    item.append(text, edit); state.results.append(item);
+                    const name=el('span',{className:'bs-pc-result-name',title:prompt.name || '未命名条目'},prompt.name || '未命名条目');
+                    const controls=el('div',{className:'bs-pc-result-controls'});
+                    const edit=button('',()=>openEntry(prompt.identifier));edit.className='bs-pc-result-edit';edit.title='编辑条目';edit.setAttribute('aria-label',`编辑 ${prompt.name || '未命名条目'}`);
+                    edit.append(el('span',{className:'fa-solid fa-pencil',ariaHidden:'true'}));
+                    edit.disabled=!pm()?.getPromptById?.(prompt.identifier)||pm()?.isPromptEditAllowed?.(prompt)===false;
+                    const toggle=el('input',{type:'checkbox',className:'bs-pc-result-toggle',checked:prompt.enabled===true});
+                    toggle.setAttribute('role','switch');toggle.setAttribute('aria-label',`启用 ${prompt.name || '未命名条目'}`);
+                    toggle.disabled=resultToggleBusy||!pm()?.getPromptById?.(prompt.identifier)||pm()?.isPromptToggleAllowed?.(prompt)===false;
+                    const sourcePrompts=pm()?.serviceSettings?.prompts;
+                    toggle.addEventListener('change',()=>toggleSearchResult(prompt.identifier,toggle.checked,sourcePrompts));
+                    controls.append(edit,toggle);item.append(name,controls);state.results.append(item);
                 }
             }
-            const message = terms.length ? `找到 ${found.length} / ${data.length} 条${found.length ? '' : '，试试其他关键词'}` : `${data.length} 条`;
+            const message = resultError || (terms.length ? `找到 ${found.length} / ${data.length} 条${found.length ? '' : '，试试其他关键词'}` : `${data.length} 条`);
             if (state.count.textContent !== message) state.count.textContent = message;
         }
         switchProfiles.refresh();
