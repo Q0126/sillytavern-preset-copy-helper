@@ -119,7 +119,6 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 #bs-preset-launch { box-sizing:border-box; display:flex!important; align-items:center; justify-content:space-between; gap:8px; flex:1 1 0!important; width:0!important; min-width:0!important; max-width:100%; min-height:36px; margin:0!important; padding:6px 10px; text-align:left; font:inherit; line-height:1.25; cursor:pointer; }
 #bs-preset-launch[hidden],.bs-preset-switcher[hidden] { display:none!important; }
 .bs-preset-launch-name { display:block; flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.bs-preset-launch-arrow { flex:none; opacity:.6; font:18px/1 sans-serif; }
 .bs-pc-switcher { box-sizing:border-box; display:flex; flex-direction:column; min-width:0; gap:4px; padding:0; }
 .bs-preset-switcher { width:100%!important; align-self:stretch; flex:0 0 auto; margin:6px 0 8px; }
 .bs-pc-switcher > .bs-pc-switch-actions { flex-wrap:nowrap!important; overflow-x:auto; min-width:0; padding:1px; scrollbar-width:none; }

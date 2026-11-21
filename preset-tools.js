@@ -92,7 +92,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
         const name=nativeSelect.selectedOptions?.[0]?.textContent || '选择预设';
         if(presetLaunch.dataset.name!==name) {
             presetLaunch.dataset.name=name;
-            presetLaunch.replaceChildren(el('span',{className:'bs-preset-launch-name'},name),el('span',{className:'bs-preset-launch-arrow',ariaHidden:'true'},'⌄'));
+            presetLaunch.replaceChildren(el('span',{className:'bs-preset-launch-name'},name));
         }
         presetLaunch.title=name+' · 选择 / 批量管理';
     }
