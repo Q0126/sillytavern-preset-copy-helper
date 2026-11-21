@@ -55,6 +55,7 @@ export function renamePlan(items, selected, drafts, allowDuplicates = false) {
 export function createPresetTools({ context, settings, onRefresh }) {
     let openai, presetModule, destroyed = false, query = '', modal, busy = false;
     const bars = new Map();
+    let nativeSelect=null,presetLaunch=null,switchHost=null,selectObserver=null;
     const pm = () => openai?.promptManager;
     const fallback = () => openai?.oai_settings ?? context.chatCompletionSettings ?? {};
     const ready = Promise.all([
@@ -72,7 +73,37 @@ export function createPresetTools({ context, settings, onRefresh }) {
         manager.clearEditForm?.(); manager.clearInspectForm?.();
         manager.loadPromptIntoEditForm(prompt); manager.showPopup();
     }
+    function mountPresetPicker() {
+        const select=document.querySelector('select#settings_preset_openai');
+        if(select!==nativeSelect || (select && (!presetLaunch?.isConnected || !switchHost?.isConnected))) {
+            selectObserver?.disconnect();nativeSelect?.classList.remove('bs-preset-native-hidden');
+            presetLaunch?.remove();switchHost?.remove();nativeSelect=select;
+            if(select) {
+                presetLaunch=button('',()=>showManager().catch(error=>notify(error.message)));
+                presetLaunch.id='bs-preset-launch';presetLaunch.classList.add('bs-preset-launch');
+                presetLaunch.setAttribute('aria-haspopup','dialog');presetLaunch.setAttribute('aria-label','选择或批量管理预设');
+                select.after(presetLaunch);
+                switchHost=el('div',{className:'bs-pc-switcher bs-preset-switcher'});
+                const anchor=select.parentElement===document.body ? presetLaunch : select.parentElement;
+                anchor.after(switchHost);switchProfiles.mount(switchHost);
+                selectObserver=new MutationObserver(onRefresh);selectObserver.observe(select,{childList:true,subtree:true,characterData:true});
+            }
+        }
+        if(!nativeSelect)return;
+        const enabled=!!settings.search;
+        nativeSelect.classList.toggle('bs-preset-native-hidden',enabled);
+        presetLaunch.hidden=!enabled;switchHost.hidden=!enabled;
+        const name=nativeSelect.selectedOptions?.[0]?.textContent || '选择预设';
+        if(presetLaunch.dataset.name!==name) {
+            presetLaunch.dataset.name=name;
+            presetLaunch.replaceChildren(el('span',{className:'bs-preset-launch-name'},name),el('span',{className:'bs-preset-launch-arrow',ariaHidden:'true'},'⌄'));
+        }
+        presetLaunch.title=name+' · 选择 / 批量管理';
+    }
+    function onNativeChange(event) {if(event.target===nativeSelect)onRefresh();}
+    document.addEventListener('change',onNativeChange);
     function refresh() {
+        mountPresetPicker();
         for (const [list, state] of bars) if (!list.isConnected) { state.bar.remove(); bars.delete(list); }
         for (const list of document.querySelectorAll(LIST)) {
             list.classList.toggle('bs-pc-compact-list',settings.search);
@@ -83,18 +114,19 @@ export function createPresetTools({ context, settings, onRefresh }) {
                 const input = el('input', { type:'search', className:'text_pole', value:query, placeholder:'搜索条目名称 / 内容' });
                 input.setAttribute('aria-label', '搜索当前预设条目');
                 const clear = () => { query=''; input.value=''; refresh(); input.focus(); };
-                row.append(input, button('清除', clear), button('批量管理', () => showManager().catch(error => notify(error.message))));
+                const clearButton=button('×',clear);clearButton.className='bs-pc-search-clear';clearButton.title='清除搜索';clearButton.setAttribute('aria-label','清除搜索');
+                row.append(input,clearButton);
                 const count = el('small', { role:'status', className:'bs-pc-count' });
                 const results = el('div', { className:'bs-pc-results', hidden:true });
-                const switchHost=el('div',{className:'bs-pc-switcher'});
-                bar.append(row,switchHost,count,results);list.before(bar);switchProfiles.mount(switchHost);
-                state = { bar, input, count, results, fingerprint:'' }; bars.set(list, state);
+                bar.append(row,count,results);list.before(bar);
+                state = { bar, input, clearButton, count, results, fingerprint:'' }; bars.set(list, state);
                 input.addEventListener('input', () => { query=input.value; refresh(); });
                 input.addEventListener('keydown', event => { if (event.key==='Escape') { event.stopPropagation(); clear(); } });
             }
             state.bar.hidden = !settings.search;
             if (state.input.value !== query) state.input.value = query;
             const terms = settings.search ? termsFor(query) : [];
+            state.clearButton.hidden=!query;state.count.hidden=!terms.length;
             const prompts = entries();
             const rows = [...list.querySelectorAll('[data-pm-identifier]')];
             const data = prompts.length ? prompts : rows.map(row => ({ identifier:row.dataset.pmIdentifier, name:row.querySelector('[data-pm-name]')?.dataset.pmName ?? row.textContent, content:'' }));
@@ -196,12 +228,17 @@ export function createPresetTools({ context, settings, onRefresh }) {
         const manager = getManager();
         if (!manager || !pm()) throw new Error('预设尚未加载，请打开 AI 回复配置后重试。');
         let snapshot;
-        const dialog = el('dialog', { className:'bs-theme-modal bs-preset-modal' }); modal=dialog;
+        const dialog = el('dialog', { className:'bs-theme-modal bs-preset-modal bs-preset-picker' }); modal=dialog;
         const header = el('div', { className:'bs-theme-header' });
         const close = button('关闭', () => { if (!busy) dialog.close(); });
-        header.append(el('strong', {}, '批量管理预设'), close);
+        const heading=el('div',{className:'bs-preset-heading'});heading.append(el('strong',{},'预设'),el('small',{},'选择要使用的预设'));
+        header.append(heading,close);
         const tabs = el('div', { className:'bs-preset-actions' });
-        const filter = el('input', { className:'text_pole', type:'search', placeholder:'搜索名称 / 条目内容' });
+        const filter = el('input', { className:'text_pole', type:'search', placeholder:'搜索预设名称' });filter.setAttribute('aria-label','搜索预设');
+        const pickerTools=el('div',{className:'bs-preset-picker-tools'});
+        let editing=false;
+        const batchButton=button('批量管理',()=>{editing=!editing;batchButton.textContent=editing?'完成管理':'批量管理';load('saved');});
+        pickerTools.append(filter,batchButton);
         const controls = el('div', { className:'bs-preset-actions' });
         const prefix = el('input', { className:'text_pole', placeholder:'统一前缀', 'ariaLabel':'统一前缀' });
         const suffix = el('input', { className:'text_pole', placeholder:'统一后缀', 'ariaLabel':'统一后缀' });
@@ -214,6 +251,27 @@ export function createPresetTools({ context, settings, onRefresh }) {
         const render = () => {
             list.replaceChildren();
             for (const item of visible()) {
+                if(!editing) {
+                    const option=button('',async()=>{
+                        if(busy)return;
+                        if(manager.getSelectedPresetName()===item.name){dialog.close();return;}
+                        setBusy(true);
+                        try {
+                            const nativeOption=[...(nativeSelect?.options??[])].find(option=>option.text===item.name);
+                            if(!nativeOption)throw new Error('预设列表已变化，请重新打开。');
+                            if(typeof manager.selectPreset==='function')await manager.selectPreset(nativeOption.value);
+                            else if(window.jQuery)window.jQuery(nativeSelect).val(nativeOption.value).trigger('change');
+                            else {nativeSelect.value=nativeOption.value;nativeSelect.dispatchEvent(new Event('change',{bubbles:true}));}
+                            dialog.close();
+                        }catch(error){status.textContent=error.message;}
+                        finally{setBusy(false);onRefresh();}
+                    });
+                    option.className='bs-preset-option';
+                    const active=manager.getSelectedPresetName()===item.name;
+                    option.setAttribute('aria-pressed',String(active));
+                    option.append(el('span',{className:'bs-preset-option-name'},item.name),el('small',{className:'bs-preset-option-state'},active?'当前使用':'选择'));
+                    list.append(option);continue;
+                }
                 const row = el('div', { className:'bs-preset-row' });
                 const check = el('input', { type:'checkbox', checked:selected.has(item.id), disabled:busy });
                 check.setAttribute('aria-label', `选择 ${item.name}`);
@@ -228,9 +286,11 @@ export function createPresetTools({ context, settings, onRefresh }) {
             if (!list.childElementCount) list.append(el('p', {}, '没有匹配的项目'));
             updateCount();
         };
-        const updateCount = () => { status.textContent=`${mode==='saved'?'整份 Chat Completion 预设':'当前预设条目'} · 已选 ${selected.size} / ${items.length} 项`; };
+        const updateCount = () => { if(!editing){status.textContent=`${visible().length} / ${items.length} 份预设`;return;} status.textContent=`${mode==='saved'?'整份 Chat Completion 预设':'当前预设条目'} · 已选 ${selected.size} / ${items.length} 项`; };
         const load = nextMode => {
             mode=nextMode; selected.clear(); drafts.clear(); filter.value='';
+            tabs.hidden=controls.hidden=names.hidden=footer.hidden=note.hidden=!editing;
+            filter.placeholder=editing?'搜索名称 / 条目内容':'搜索预设名称';
             if (mode==='entries') {
                 const service=pm().serviceSettings;
                 snapshot={prompts:service.prompts,order:service.prompt_order,character:pm().activeCharacter};
@@ -281,13 +341,15 @@ export function createPresetTools({ context, settings, onRefresh }) {
         footer.append(button('保存改名',()=>run(false)),button('删除已选',()=>run(true)));
         const note=el('div',{className:'bs-theme-note'});
         filter.addEventListener('input',render);
-        dialog.append(header,tabs,filter,controls,names,status,list,footer,note);
+        footer.classList.add('bs-preset-picker-footer');
+        dialog.append(header,pickerTools,tabs,controls,names,status,list,footer,note);
         dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
         dialog.addEventListener('close',()=>{dialog.remove();if(modal===dialog)modal=null;});
         document.body.append(dialog);load('saved');dialog.showModal();
     }
     function destroy() {
         destroyed=true;switchProfiles.destroy();
+        selectObserver?.disconnect();nativeSelect?.classList.remove('bs-preset-native-hidden');presetLaunch?.remove();switchHost?.remove();document.removeEventListener('change',onNativeChange);
         for(const [list,state] of bars) {list.classList.remove('bs-pc-search-list-hidden','bs-pc-compact-list');state.bar.remove();}
         bars.clear();modal?.close();modal?.remove();modal=null;
     }

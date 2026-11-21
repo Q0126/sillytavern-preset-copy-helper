@@ -8,7 +8,7 @@ const switches=fs.readFileSync(path.join(__dirname,'../switch-profiles.js'),'utf
 const source = fs.readFileSync(path.join(__dirname,'../preset-tools.js'),'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve,0));
 async function main() {
-    const dom = new JSDOM(`<select id="settings_preset_openai"><option value="0">A</option><option value="1">B</option><option value="2">C</option></select><div id="completion_prompt_manager"><ul id="completion_prompt_manager_list"><section hidden><li data-pm-identifier="a">重复</li></section><li data-pm-identifier="b">重复</li><li data-pm-identifier="main">Main</li></ul></div>`, {runScripts:'outside-only'});
+    const dom = new JSDOM(`<div id="preset-row" class="flex-container"><select id="settings_preset_openai"><option value="0">A</option><option value="1">B</option><option value="2">C</option></select><button id="native-save">保存</button></div><div id="completion_prompt_manager"><ul id="completion_prompt_manager_list"><section hidden><li data-pm-identifier="a">重复</li></section><li data-pm-identifier="b">重复</li><li data-pm-identifier="main">Main</li></ul></div>`, {runScripts:'outside-only'});
     const w = dom.window, d = w.document;
     w.structuredClone = structuredClone;
     w.HTMLDialogElement.prototype.showModal=function(){this.open=true};
@@ -34,11 +34,20 @@ async function main() {
     const check=name=>{const n=[...d.querySelectorAll('.bs-preset-name input')].find(n=>n.getAttribute('aria-label')===`选择 ${name}`);assert.ok(n,name);n.checked=true;event(n,'change')};
     const status=()=>d.querySelector('.bs-preset-modal [role=status]').textContent;
     const run=async text=>{btn(text).click();await tick();await tick()};
+    assert.equal(d.querySelector('.bs-pc-search #bs-preset-launch'),null);
+    assert.equal(d.querySelector('#preset-row').nextElementSibling.classList.contains('bs-preset-switcher'),true);
+    assert.equal(d.querySelector('.bs-pc-search .bs-pc-switcher'),null);
+    assert.equal(select.classList.contains('bs-preset-native-hidden'),true);
+    const openPicker=async()=>{d.querySelector('#bs-preset-launch').click();await tick();};
+    await openPicker();assert.equal(d.querySelectorAll('.bs-preset-option').length,3);assert.equal(calls.length,0);
+    const pickerSearch=d.querySelector('[aria-label="搜索预设"]');input(pickerSearch,'B');assert.equal(d.querySelectorAll('.bs-preset-option').length,1);
+    d.querySelector('.bs-preset-option').click();await tick();assert.equal(model.preset_settings_openai,'B');assert.equal(d.querySelector('.bs-preset-picker'),null);
+    await openPicker();[...d.querySelectorAll('.bs-preset-option')].find(n=>n.querySelector('.bs-preset-option-name').textContent==='A').click();await tick();assert.equal(model.preset_settings_openai,'A');assert.equal(calls.length,0);
     const search=d.querySelector('input[type=search]');
     input(search,'HIDDEN needle');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 1 \/ 3/);assert.equal(d.querySelectorAll('.bs-pc-result').length,1);btn('编辑').click();assert.equal(edited,'a');
     d.querySelector('ul').innerHTML='<section hidden><li data-pm-identifier="a">重复</li></section>';tool.refresh();assert.equal(d.querySelectorAll('.bs-pc-result').length,1);
-    input(search,'missing');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0/);btn('清除').click();assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
-    await run('批量管理');input(draft('A'),'Alpha');input(draft('B'),'Beta');await run('保存改名');assert.match(status(),/已改名 2/);
+    input(search,'missing');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0/);btn('×').click();assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
+    d.querySelector('#bs-preset-launch').click();await tick();await run('批量管理');input(draft('A'),'Alpha');input(draft('B'),'Beta');await run('保存改名');assert.match(status(),/已改名 2/);
     assert.deepEqual(calls.filter(c=>c.url.endsWith('/save')).map(c=>c.preset.prompts[0].content),['AAA','BBB']);assert.equal(model.preset_settings_openai,'Alpha');assert.equal(settings.switchProfiles[0].presetName,'Alpha');assert.equal(model.prompts[0].content,'only hidden needle');
     const count=calls.length;input(draft('Alpha'),'C');await run('保存改名');assert.equal(calls.length,count);assert.match(status(),/重复|原名称/);
     await run('当前条目');input(draft('重复'),'Renamed');await run('保存改名');assert.equal(model.prompts[0].name,'Renamed');assert.equal(saved,1);
@@ -57,7 +66,7 @@ async function main() {
     await run('取消选择');check('Alpha');await run('删除已选');assert.equal(preset_names.Alpha,undefined);assert.equal(settings.switchProfiles.length,0);assert.ok(model.preset_settings_openai);assert.notEqual(model.preset_settings_openai,'Alpha');
     await run('全选搜索结果');const beforeAll=calls.length;await run('删除已选');assert.equal(calls.length,beforeAll);assert.match(status(),/保留/);
     await run('当前条目');const oldName=model.prompts[0].name;input(draft(oldName),'Should not change');pm.activeCharacter={id:100002};await run('保存改名');assert.equal(model.prompts[0].name,oldName);assert.match(status(),/切换/);pm.activeCharacter={id:100001};
-    btn('关闭').click();input(search,'system');tool.destroy();assert.equal(d.querySelectorAll('.bs-pc-search').length,0);assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
+    btn('关闭').click();input(search,'system');tool.destroy();assert.equal(d.querySelectorAll('.bs-pc-search').length,0);assert.equal(select.classList.contains('bs-preset-native-hidden'),false);assert.equal(d.querySelector('#bs-preset-launch'),null);assert.equal(d.querySelector('.bs-preset-switcher'),null);assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
     dom.window.close();
     console.log('PASS: model-based folded search, rerender, no-results/clear, edit, batch file rename, own-content preservation, duplicate protection, entry rename/delete, built-in protection, rollback, server errors, partial rename, active-preset guard, cleanup.');
 }

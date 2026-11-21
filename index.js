@@ -122,7 +122,7 @@ function init() {
     applySettings(); mountSettings(); refresh();
     observer=new MutationObserver(records=>{
         // Child-list only: filter class/style changes must not trigger a refresh loop.
-        if(records.some(r=>r.target.nodeType===1 && !r.target.closest('.bs-pc-search,.bs-preset-modal,.bs-theme-modal,.bs-theme-launch') && !r.target.closest('.mes_text') && (r.target.closest('#completion_prompt_manager,#chat,#UI-presets-block') || [...r.addedNodes].some(n=>n.nodeType===1 && (n.matches?.(LIST+',#chat,#completion_prompt_manager,#themes,#UI-presets-block') || n.querySelector?.(LIST)))))) queueRefresh();
+        if(records.some(r=>r.target.nodeType===1 && !r.target.closest('.bs-pc-search,.bs-preset-modal,.bs-theme-modal,.bs-theme-launch') && !r.target.closest('.mes_text') && (r.target.closest('#completion_prompt_manager,#chat,#UI-presets-block') || [...r.addedNodes].some(n=>n.nodeType===1 && (n.matches?.(LIST+',#chat,#completion_prompt_manager,#themes,#UI-presets-block,#settings_preset_openai') || n.querySelector?.(LIST+',#settings_preset_openai')))))) queueRefresh();
     });
     observer.observe(document.body,{childList:true,subtree:true});
     listen(document,'copy',onCopy,true);
