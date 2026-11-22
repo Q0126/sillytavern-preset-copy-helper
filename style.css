@@ -138,16 +138,19 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-preset-picker-footer > button { flex:1; min-height:40px; }
 .bs-preset-picker button:focus-visible,#bs-preset-launch:focus-visible { outline:2px solid var(--SmartThemeQuoteColor,currentColor); outline-offset:2px; }
 
-.bs-theme-modal.bs-switch-modal { width:min(400px,calc(100vw - 48px))!important; height:auto!important; min-height:0!important; max-width:calc(100vw - 48px); max-height:calc(100dvh - 64px); margin:auto; border-radius:14px; }
+.bs-theme-modal.bs-switch-modal { width:min(400px,calc(100vw - 48px))!important; height:fit-content!important; min-height:0!important; max-width:calc(100vw - 48px); max-height:calc(100dvh - 64px); inset:0; margin:auto!important; border-radius:14px; overflow-y:auto; }
 .bs-switch-modal .bs-theme-header > strong { font-size:18px; }
-.bs-switch-modal .bs-preset-actions { padding:8px 16px; }
-.bs-switch-modal .bs-preset-actions > input { min-height:38px; font-size:14px; }
+.bs-switch-modal .bs-preset-actions { padding:8px 12px; }
+.bs-switch-create > label { display:flex; flex:1 1 100%; flex-direction:column; gap:6px; font-size:13px; }
+.bs-switch-create > label > input { flex:none; width:100%; min-width:0; min-height:38px; font-size:14px; }
 .bs-switch-modal .bs-preset-actions > button { min-height:38px; font-size:13px!important; }
 .bs-pc-filtering .bs-pc-search-reveal { display:block!important; height:auto!important; max-height:none!important; visibility:visible!important; content-visibility:visible!important; }
 .bs-pc-filtering .drag-handle { pointer-events:none!important; opacity:.25; }
 .bs-pc-search-row > input::-ms-clear { display:none!important; }
 .bs-preset-switcher > .menu_button { align-self:flex-start; width:auto!important; min-height:30px; margin:0; padding:4px 9px; font-size:13px!important; line-height:20px; white-space:nowrap; }
-.bs-switch-modal > .bs-switch-search { box-sizing:border-box; flex:none; width:calc(100% - 32px); min-width:0; min-height:38px; margin:0 16px 8px; font-size:14px; }
+.bs-switch-toolbar { display:flex; align-items:center; flex:none; gap:8px; padding:0 12px 8px; }
+.bs-switch-toolbar > .bs-switch-search { box-sizing:border-box; flex:1; width:0; min-width:0; min-height:38px; margin:0; font-size:14px; }
+.bs-switch-toolbar > button { flex:none; min-height:38px; margin:0; white-space:nowrap; font-size:13px!important; }
 .bs-switch-choose { box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:44px; padding:6px 0; border:0; background:transparent; color:inherit; text-align:left; font:inherit; cursor:pointer; }
 .bs-switch-name { min-width:0; overflow-wrap:anywhere; font-size:15px; line-height:1.5; }
 .bs-switch-state { flex:none; font-size:12px; opacity:.6; }

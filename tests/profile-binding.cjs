@@ -24,7 +24,7 @@ const settle=async()=>{await tick();await tick()};
     const open=async()=>{button('角色方案').click();await settle()};const close=()=>button('关闭').click();
     await open();assert.equal(d.querySelectorAll('.bs-switch-choose').length,0);assert.equal(legacy.presetName,'Preset A');assert.equal(JSON.stringify(legacy.states),original);assert.equal(writes,0);assert.ok(saves>0);
     // The old wait hook may be absent: reject saving A's still-loaded data as B.
-    d.querySelector('[aria-label="角色 / 方案名字"]').value='Must not bind A as B';button('保存当前开关').click();await settle();assert.equal(settings.switchProfiles.length,1);assert.match(d.querySelector('.bs-switch-modal [role=status]').textContent,/不一致/);close();
+    button('新建方案').click();d.querySelector('[aria-label="方案名称"]').value='Must not bind A as B';button('保存方案').click();await settle();assert.equal(settings.switchProfiles.length,1);assert.match(d.querySelector('.bs-switch-modal [role=status]').textContent,/不一致/);close();
     // A valid B snapshot must not touch A's shared built-ins while B is loading.
     const validB={id:'valid-b',name:'B role',presetName:'Preset B',bindingVersion:2,states:structuredClone(b)};validB.states[0].enabled=false;settings.switchProfiles.push(validB);
     await open();d.querySelector('[aria-label="使用方案 B role"]').click();await settle();assert.equal(writes,0);assert.equal(JSON.stringify(model.order),original);assert.match(d.querySelector('.bs-switch-modal [role=status]').textContent,/不一致/);

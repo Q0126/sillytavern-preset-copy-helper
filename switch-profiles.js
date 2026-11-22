@@ -136,7 +136,7 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         }
         if(dialog?.open) {
             dialog.querySelectorAll('button,input,select').forEach(node=>{node.disabled=busy;});
-            const status=dialog.querySelector('[role=status]');if(status)status.textContent=message;
+            const status=dialog.querySelector('[role=status]');if(status){status.textContent=message;status.hidden=!message;}
             const available=new Map(profiles().map(profile=>[profile.id,profile]));
             for(const choose of dialog.querySelectorAll('[data-bs-switch-id]')) {
                 const profile=available.get(choose.dataset.bsSwitchId);
@@ -156,9 +156,13 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         const header=el('div',{className:'bs-theme-header'});
         header.append(el('strong',{},'角色条目方案'),button('关闭',()=>{if(!busy)modal.close();}));
         const label=el('div',{className:'bs-theme-status bs-switch-preset-label',title:presetName},`当前预设：${presetName}`);
-        const actions=el('div',{className:'bs-preset-actions'});
-        const name=el('input',{className:'text_pole',placeholder:'角色 / 方案名字'});name.setAttribute('aria-label','角色 / 方案名字');
-        const search=el('input',{type:'text',className:'text_pole bs-switch-search',placeholder:'搜索角色方案'});search.setAttribute('aria-label','搜索角色方案');
+        const actions=el('form',{id:'bs-switch-create',className:'bs-preset-actions bs-switch-create',hidden:true});
+        const name=el('input',{type:'text',className:'text_pole',placeholder:'例如：陈觉斐'});name.setAttribute('aria-label','方案名称');
+        const nameLabel=el('label',{},'方案名称');nameLabel.append(name);
+        const search=el('input',{type:'text',className:'text_pole bs-switch-search',placeholder:'搜索已存方案'});search.setAttribute('aria-label','搜索角色方案');
+        const setCreating=open=>{actions.hidden=!open;create.setAttribute('aria-expanded',String(open));(open?name:create).focus();};
+        const create=button('新建方案',()=>setCreating(actions.hidden));create.setAttribute('aria-expanded','false');create.setAttribute('aria-controls',actions.id);
+        const toolbar=el('div',{className:'bs-switch-toolbar'});toolbar.append(search,create);
         const list=el('div',{className:'bs-theme-scroll'});
         const status=el('div',{className:'bs-theme-status',role:'status'});
         const assertCurrent=()=>{if(presetName!==getPresetName())throw new Error('当前预设已切换，请重新打开角色方案。');};
@@ -216,18 +220,21 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
                 list.append(recovery);
             }
         };
-        actions.append(name,button('保存当前开关',async()=>{
+        const saveProfile=async event=>{
+            event.preventDefault();
             if(busy)return;
             try {
                 assertCurrent();await ensurePreset(presetName);checkBindings();const text=name.value.trim();if(!text)throw new Error('请填写角色或方案名字。');
                 if(settings.switchProfiles.some(profile=>profile.presetName===presetName&&profile.name===text))throw new Error('同名方案已存在，请点它旁边的“更新为当前开关”。');
                 settings.switchProfiles.push({id:globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random()}`,presetName,bindingVersion:2,name:text,states:captureCurrent(presetName)});
-                save();message=`已保存「${text}」`;name.value='';search.value='';render();refresh();
+                save();message=`已保存「${text}」`;name.value='';search.value='';setCreating(false);render();refresh();
             }catch(error){report(error);}
-        }));
+        };
+        const submit=el('button',{type:'submit',className:'menu_button'},'保存方案');
+        actions.append(nameLabel,submit,button('取消',()=>{name.value='';setCreating(false);}));actions.addEventListener('submit',saveProfile);
         const note=el('div',{className:'bs-theme-note'},'方案仅保存当前预设的条目开关。');
         renderDialog=render;search.addEventListener('input',render);
-        modal.append(header,label,search,actions,status,list,note);
+        modal.append(header,label,toolbar,actions,status,list,note);
         modal.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
         modal.addEventListener('close',()=>{modal.remove();if(dialog===modal){dialog=null;renderDialog=null;}});
         document.body.append(modal);render();modal.showModal();refresh();

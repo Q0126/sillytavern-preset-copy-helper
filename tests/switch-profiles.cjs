@@ -28,14 +28,14 @@ async function main(){
     const btn=(name,scope=d)=>{const item=[...scope.querySelectorAll('button')].find(item=>item.textContent===name);assert.ok(item,`button ${name}`);return item;};
     const run=async name=>{btn(name).click();await tick();await tick();};
     const choose=async name=>{await run('角色方案');d.querySelector(`[aria-label="使用方案 ${name}"]`).click();await tick();await tick();};
-    await run('角色方案');d.querySelector('[aria-label="角色 / 方案名字"]').value='角色 A';await run('保存当前开关');assert.equal(settings.switchProfiles.length,1);assert.equal(settings.switchProfiles[0].name,'角色 A');assert.equal(JSON.stringify(settings).includes('new content'),false);
-    order[0].enabled=false;order[1].enabled=true;d.querySelector('[aria-label="角色 / 方案名字"]').value='角色 B';await run('保存当前开关');assert.equal(settings.switchProfiles.length,2);assert.ok(settingsWrites>=2);
+    await run('角色方案');assert.equal(d.querySelector('#bs-switch-create').hidden,true);assert.equal(d.querySelectorAll('.bs-switch-toolbar input').length,1);await run('新建方案');assert.equal(d.querySelector('#bs-switch-create').hidden,false);await run('取消');assert.equal(d.querySelector('#bs-switch-create').hidden,true);await run('新建方案');d.querySelector('[aria-label="方案名称"]').value='角色 A';await run('保存方案');assert.equal(settings.switchProfiles.length,1);assert.equal(settings.switchProfiles[0].name,'角色 A');assert.equal(JSON.stringify(settings).includes('new content'),false);
+    assert.equal(d.querySelector('#bs-switch-create').hidden,true);order[0].enabled=false;order[1].enabled=true;await run('新建方案');d.querySelector('[aria-label="方案名称"]').value='角色 B';await run('保存方案');assert.equal(settings.switchProfiles.length,2);assert.ok(settingsWrites>=2);
     btn('关闭').click();await choose('角色 A');assert.equal(order[0].enabled,true);assert.equal(order[1].enabled,false);await choose('角色 B');assert.equal(order[0].enabled,false);assert.equal(order[1].enabled,true);
     // Removing and remounting preserves profiles stored in extension settings.
     controller.destroy();const next=d.createElement('div');d.body.append(next);controller=factory();controller.mount(next);assert.equal(next.querySelectorAll('button').length,1);assert.equal(next.textContent,'角色方案');await run('角色方案');assert.ok(d.querySelector('[aria-label="使用方案 角色 A"]'));assert.equal(d.querySelector('[aria-label="使用方案 角色 B"]').getAttribute('aria-pressed'),'true');btn('关闭').click();
     presetName='Other';controller.refresh();assert.equal([...next.querySelectorAll('button')].some(n=>n.textContent==='角色 A'),false);
     controller.renamePreset('Shared','Renamed');presetName='Renamed';controller.refresh();await run('角色方案');assert.ok(d.querySelector('[aria-label="使用方案 角色 A"]'));btn('关闭').click();assert.equal(settings.switchProfiles[0].presetName,'Renamed');
-    await run('角色方案');presetName='Changed while open';d.querySelector('[aria-label="角色 / 方案名字"]').value='Should not save';await run('保存当前开关');assert.equal(settings.switchProfiles.length,2);assert.equal(d.querySelector('.bs-switch-modal'),null);
+    await run('角色方案');await run('新建方案');presetName='Changed while open';d.querySelector('[aria-label="方案名称"]').value='Should not save';await run('保存方案');assert.equal(settings.switchProfiles.length,2);assert.equal(d.querySelector('.bs-switch-modal'),null);
     presetName='Renamed';controller.refresh();
     // Many saved names stay inside the vertically scrolling dialog, with search.
     const originalProfiles=settings.switchProfiles.slice();
