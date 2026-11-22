@@ -76,7 +76,12 @@ export function createPresetTools({ context, settings, onRefresh }) {
     function presetCatalog(){
         const manager=getManager();
         const names=[...(document.querySelector('select#settings_preset_openai')?.options??[])].map(option=>option.text);
-        return names.map(name=>({name,prompts:manager?.getCompletionPresetByName?.(name)?.prompts})).filter(item=>Array.isArray(item.prompts));
+        const list=manager?.getPresetList?.();
+        return names.map(name=>{
+            const index=Array.isArray(list?.preset_names) ? list.preset_names.indexOf(name) : list?.preset_names?.[name];
+            const preset=manager?.getCompletionPresetByName?.(name) ?? list?.presets?.[index];
+            return {name,prompts:preset?.prompts};
+        }).filter(item=>Array.isArray(item.prompts));
     }
     const switchProfiles=createSwitchProfiles({context,settings,getManager:pm,getPresetName:currentPresetName,waitForPreset,getPresetCatalog:presetCatalog,onRefresh});
     let jqueryDocument=null;

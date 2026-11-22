@@ -52,5 +52,12 @@ const settle=async()=>{await tick();await tick();};
     tool.destroy();assert.equal(delegate,null);
     // Reloading on B still uses B, despite stale persisted/cached A metadata.
     pending=Promise.resolve();model.preset_settings_openai='Preset A';tool=w.createTool({context:{saveSettingsDebounced(){}},settings,onRefresh:()=>tool?.refresh()});await settle();await open();assert.deepEqual(names(),['B-only role']);assert.equal(settings.switchProfiles.length,2);tool.destroy();
-    dom.window.close();console.log('PASS: live A/B scope, jQuery-only changes, stale manager/select, DOM replacement, unknown preset, old-chip guard, load barrier, cancelled apply, dialog/status cleanup, persistence and listener cleanup.');
+    // Older managers expose only getPresetList; ownership repair still needs
+    // their saved catalog, rather than silently accepting an empty catalog.
+    const uniqueA=[{identifier:'unique-a',enabled:true}],uniqueB=[{identifier:'unique-b',enabled:true}];
+    presetManager.getPresetList=()=>({presets:[{prompts:uniqueA},{prompts:uniqueB}],preset_names:{'Preset A':0,'Preset B':1}});
+    settings.switchProfiles=[{id:'legacy',name:'Actually A',presetName:'Preset B',states:structuredClone(uniqueA)}];
+    tool=w.createTool({context:{saveSettingsDebounced(){}},settings,onRefresh:()=>tool?.refresh()});await settle();await open();assert.deepEqual(names(),[]);assert.equal(settings.switchProfiles[0].presetName,'Preset A');close();
+    choose('0');await open();assert.deepEqual(names(),['Actually A']);tool.destroy();
+    dom.window.close();console.log('PASS: live A/B scope, jQuery-only changes, stale manager/select, DOM replacement, unknown preset, old-chip guard, load barrier, cancelled apply, dialog/status cleanup, persistence, legacy catalog fallback and listener cleanup.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

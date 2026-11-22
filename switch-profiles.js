@@ -89,7 +89,7 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
     function checkBindings(){catalog=getPresetCatalog()??[];catalogScopes=new Map(switchCatalog(catalog).map(item=>[item.name,item]));if(repairSwitchProfileBindings(settings.switchProfiles,catalog)){save();renderDialog?.();}}
     function captureCurrent(name){
         const states=captureSwitches(getManager());
-        if(!compatible({presetName:name,states}))throw new Error('当前条目与已保存的预设不一致，请先保存或重新选择预设，再保存方案。');
+        if(!compatible({presetName:name,states}))throw new Error('当前条目与已保存的预设不一致，请等待加载完成；若仍有提示，请先保存或重新选择预设。');
         return states;
     }
     const save=()=>context.saveSettingsDebounced?.();
@@ -109,6 +109,7 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         try {
             await ensurePreset(profile.presetName);checkBindings();
             if(profile.presetName!==getPresetName()||!compatible(profile))throw new Error('这个旧方案不属于当前预设，请在“⋯”中调整归属。');
+            captureCurrent(profile.presetName);
             const result=await applySwitches(getManager(),profile.states);
             if(getPresetName()!==profile.presetName)return false;
             message=`已切换「${profile.name}」`;
