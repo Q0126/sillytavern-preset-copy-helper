@@ -108,7 +108,7 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 /* Named switch schemes for the shared preset. */
 .bs-pc-switch-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .bs-pc-switch-actions > button { flex:none; width:auto!important; margin:0; padding:6px 10px; white-space:nowrap; font:inherit; }
-.bs-switch-row { display:flex; flex-direction:column; gap:8px; padding:12px 0; border-bottom:1px solid var(--SmartThemeBorderColor,#7775); }
+.bs-switch-row { display:block; padding:6px 0; border-bottom:1px solid var(--SmartThemeBorderColor,#7775); }
 .bs-switch-row .menu_button { font-size:.8em; }
 
 /* Preset selection stays with preset controls; schemes sit just below that row. */
@@ -138,7 +138,7 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-preset-picker-footer > button { flex:1; min-height:40px; }
 .bs-preset-picker button:focus-visible,#bs-preset-launch:focus-visible { outline:2px solid var(--SmartThemeQuoteColor,currentColor); outline-offset:2px; }
 
-.bs-theme-modal.bs-switch-modal { width:min(560px,calc(100vw - 24px)); height:min(540px,calc(100dvh - 32px)); max-width:calc(100vw - 24px); max-height:calc(100dvh - 32px); margin:auto; border-radius:16px; }
+.bs-theme-modal.bs-switch-modal { width:min(400px,calc(100vw - 48px))!important; height:auto!important; min-height:0!important; max-width:calc(100vw - 48px); max-height:calc(100dvh - 64px); margin:auto; border-radius:14px; }
 .bs-switch-modal .bs-theme-header > strong { font-size:18px; }
 .bs-switch-modal .bs-preset-actions { padding:8px 16px; }
 .bs-switch-modal .bs-preset-actions > input { min-height:38px; font-size:14px; }
@@ -154,3 +154,22 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-switch-choose[aria-pressed="true"] .bs-switch-name { font-weight:700; }
 .bs-switch-choose[aria-pressed="true"] .bs-switch-state { opacity:1; }
 .bs-switch-choose:focus-visible { outline:2px solid var(--SmartThemeQuoteColor,currentColor); outline-offset:2px; }
+
+.bs-switch-modal > .bs-theme-scroll { flex:0 1 auto; max-height:40dvh; padding:0 12px 8px; }
+.bs-switch-modal .bs-theme-header { padding:12px; }
+.bs-switch-modal .bs-theme-note { padding:8px 12px; font-size:11px; }
+.bs-switch-main { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.bs-switch-main > .bs-switch-choose { flex:1; min-width:0; min-height:38px; }
+.bs-switch-name { font-size:14px; }
+.bs-switch-menu { flex:none; position:relative; }
+.bs-switch-menu > summary { display:grid; place-items:center; width:30px; height:30px; list-style:none; cursor:pointer; font:22px/1 sans-serif; }
+.bs-switch-menu > summary::-webkit-details-marker { display:none; }
+.bs-switch-menu[open] { flex:0 0 100%; }
+.bs-switch-menu[open] > summary { margin-left:auto; }
+.bs-switch-menu-panel { box-sizing:border-box; width:100%; display:flex; flex-direction:column; gap:6px; padding:10px; border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:10px; background:var(--SmartThemeBlurTintColor,#242631); }
+.bs-switch-menu-panel > .menu_button { margin:0; min-height:30px; font-size:12px!important; }
+.bs-switch-menu-panel > select { width:100%; min-width:0; margin:0; font-size:12px; }
+.bs-switch-menu-panel > small { font-size:11px; opacity:.65; }
+.bs-switch-recovery { font-size:12px; margin:8px 0; }
+.bs-switch-recover-row { display:flex; flex-direction:column; gap:6px; padding:8px 0; }
+.bs-switch-preset-label { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:12px; }

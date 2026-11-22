@@ -73,7 +73,12 @@ export function createPresetTools({ context, settings, onRefresh }) {
         return select ? (select.selectedOptions?.[0]?.textContent ?? '') : (fallback().preset_settings_openai ?? '');
     }
     const waitForPreset=async()=>{await openai?.getPresetApplicationPromise?.();};
-    const switchProfiles=createSwitchProfiles({context,settings,getManager:pm,getPresetName:currentPresetName,waitForPreset,onRefresh});
+    function presetCatalog(){
+        const manager=getManager();
+        const names=[...(document.querySelector('select#settings_preset_openai')?.options??[])].map(option=>option.text);
+        return names.map(name=>({name,prompts:manager?.getCompletionPresetByName?.(name)?.prompts})).filter(item=>Array.isArray(item.prompts));
+    }
+    const switchProfiles=createSwitchProfiles({context,settings,getManager:pm,getPresetName:currentPresetName,waitForPreset,getPresetCatalog:presetCatalog,onRefresh});
     let jqueryDocument=null;
     function bindPresetChanges() {
         if(!jqueryDocument&&window.jQuery?.fn?.on) {
