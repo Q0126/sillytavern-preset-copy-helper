@@ -66,16 +66,17 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
     const report=error=>{message=error.message;refresh();};
     const confirm=async text=>context.Popup?.show?.confirm ? context.Popup.show.confirm(text,null) : window.confirm(text);
     async function apply(profile) {
-        if(busy||destroyed) return;
-        if(profile.presetName!==getPresetName()) {report(new Error('当前预设已切换，请选择当前预设的方案。'));return;}
+        if(busy||destroyed) return false;
+        if(profile.presetName!==getPresetName()) {report(new Error('当前预设已切换，请选择当前预设的方案。'));return false;}
         busy=true;message=`正在切换到「${profile.name}」…`;refresh();
         try {
             await ensurePreset(profile.presetName);
             const result=await applySwitches(getManager(),profile.states);
-            if(getPresetName()!==profile.presetName)return;
+            if(getPresetName()!==profile.presetName)return false;
             message=`已切换「${profile.name}」`;
             if(result.added||result.missing) message+=` · ${result.added} 个新增条目保持原开关，${result.missing} 个旧条目已失效，可重新保存方案`;
-        } catch(error) { if(getPresetName()===profile.presetName)message=`切换失败：${error.message}`; }
+            return result.added===0&&result.missing===0;
+        } catch(error) { if(getPresetName()===profile.presetName)message=`切换失败：${error.message}`;return false; }
         finally {busy=false;if(!destroyed){refresh();onRefresh();}}
     }
     function mount(host) {hosts.add(host);refresh();}
@@ -86,24 +87,22 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         }
         for(const host of hosts) {
             if(!host.isConnected) {hosts.delete(host);continue;}
-            const list=profiles();
-            // Do not rebuild focused controls on unrelated native UI refreshes.
-            const fingerprint=JSON.stringify([busy,message,getPresetName(),list.map(profile=>[profile.id,profile.name,currentMatches(profile)])]);
-            if(host.dataset.switchFingerprint===fingerprint) continue;
+            const count=profiles().length;
+            const fingerprint=JSON.stringify([busy,getPresetName(),count]);
+            if(host.dataset.switchFingerprint===fingerprint)continue;
             host.dataset.switchFingerprint=fingerprint;host.replaceChildren();
-            const actions=el('div',{className:'bs-pc-switch-actions'});
-            actions.append(button('角色方案',()=>showDialog().catch(report)));
-            for(const profile of list) {
-                const chip=button(profile.name,()=>apply(profile));
-                chip.classList.add('bs-pc-switch-chip');chip.setAttribute('aria-pressed',String(currentMatches(profile)));chip.disabled=busy;
-                actions.append(chip);
-            }
-            host.append(actions);
-            host.append(el('small',{role:'status',hidden:!message},message));
+            const launch=button('角色方案',()=>showDialog().catch(error=>{report(error);globalThis.toastr?.error?.(error.message);}));
+            launch.title=`管理当前预设的 ${count} 个角色方案`;launch.disabled=busy;
+            launch.setAttribute('aria-haspopup','dialog');host.append(launch);
         }
         if(dialog?.open) {
             dialog.querySelectorAll('button,input').forEach(node=>{node.disabled=busy;});
             const status=dialog.querySelector('[role=status]');if(status)status.textContent=message;
+            for(const choose of dialog.querySelectorAll('[data-bs-switch-id]')) {
+                const profile=profiles().find(item=>item.id===choose.dataset.bsSwitchId);
+                const active=profile&&currentMatches(profile);choose.setAttribute('aria-pressed',String(!!active));
+                choose.querySelector('.bs-switch-state').textContent=active?'当前开关':'使用';
+            }
         }
     }
     async function showDialog() {
@@ -119,16 +118,23 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         const label=el('div',{className:'bs-theme-status'},`当前预设：${presetName}`);
         const actions=el('div',{className:'bs-preset-actions'});
         const name=el('input',{className:'text_pole',placeholder:'角色 / 方案名字'});name.setAttribute('aria-label','角色 / 方案名字');
+        const search=el('input',{type:'text',className:'text_pole bs-switch-search',placeholder:'搜索角色方案'});search.setAttribute('aria-label','搜索角色方案');
         const list=el('div',{className:'bs-theme-scroll'});
         const status=el('div',{className:'bs-theme-status',role:'status'});
         const assertCurrent=()=>{if(presetName!==getPresetName())throw new Error('当前预设已切换，请重新打开角色方案。');};
         const render=()=>{
             list.replaceChildren();
-            for(const profile of settings.switchProfiles.filter(profile=>profile.presetName===presetName)) {
+            const query=search.value.normalize('NFKC').toLocaleLowerCase().trim();
+            for(const profile of settings.switchProfiles.filter(profile=>profile.presetName===presetName && profile.name.normalize('NFKC').toLocaleLowerCase().includes(query))) {
                 const row=el('div',{className:'bs-switch-row'});
-                row.append(el('strong',{},profile.name));
+                const choose=button('',async()=>{
+                    try {assertCurrent();if(await apply(profile))modal.close();}catch(error){report(error);}
+                });
+                choose.className='bs-switch-choose';choose.dataset.bsSwitchId=profile.id;choose.setAttribute('aria-label',`使用方案 ${profile.name}`);
+                const active=currentMatches(profile);choose.setAttribute('aria-pressed',String(active));
+                choose.append(el('span',{className:'bs-switch-name'},profile.name),el('small',{className:'bs-switch-state'},active?'当前开关':'使用'));
+                row.append(choose);
                 const buttons=el('div',{className:'bs-pc-switch-actions'});
-                buttons.append(button('切换',()=>{try{assertCurrent();void apply(profile);}catch(error){report(error);}}));
                 buttons.append(button('更新为当前开关',async()=>{
                     if(busy)return;
                     try {
@@ -146,7 +152,7 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
                 }));
                 row.append(buttons);list.append(row);
             }
-            if(!list.childElementCount)list.append(el('p',{},'还没有方案。先在原列表调好开关，再填写名字保存。'));
+            if(!list.childElementCount)list.append(el('p',{},search.value?'没有匹配的角色方案':'还没有方案。先在原列表调好开关，再填写名字保存。'));
         };
         actions.append(name,button('保存当前开关',async()=>{
             if(busy)return;
@@ -154,11 +160,12 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
                 assertCurrent();await ensurePreset(presetName);const text=name.value.trim();if(!text)throw new Error('请填写角色或方案名字。');
                 if(settings.switchProfiles.some(profile=>profile.presetName===presetName&&profile.name===text))throw new Error('同名方案已存在，请点它旁边的“更新为当前开关”。');
                 settings.switchProfiles.push({id:globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random()}`,presetName,name:text,states:captureSwitches(getManager())});
-                save();message=`已保存「${text}」`;name.value='';render();refresh();
+                save();message=`已保存「${text}」`;name.value='';search.value='';render();refresh();
             }catch(error){report(error);}
         }));
         const note=el('div',{className:'bs-theme-note'},'先调好角色 A 的开关并保存方案，再调角色 B 并保存。以后点名字，就会同时开启需要的条目、关闭该方案里不需要的条目。方案仅保存开关；预设新增的条目保持原状态，确认后可更新方案。');
-        modal.append(header,label,actions,status,list,note);
+        search.addEventListener('input',render);
+        modal.append(header,label,search,actions,status,list,note);
         modal.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
         modal.addEventListener('close',()=>{modal.remove();if(dialog===modal)dialog=null;});
         document.body.append(modal);render();modal.showModal();refresh();

@@ -108,10 +108,7 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 /* Named switch schemes for the shared preset. */
 .bs-pc-switch-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .bs-pc-switch-actions > button { flex:none; width:auto!important; margin:0; padding:6px 10px; white-space:nowrap; font:inherit; }
-.bs-pc-switch-chip[aria-pressed="true"] { outline:1px solid var(--SmartThemeQuoteColor,currentColor); background:var(--SmartThemeChatTintColor,#7773); }
-.bs-pc-switcher > small { font-size:.78em; overflow-wrap:anywhere; }
 .bs-switch-row { display:flex; flex-direction:column; gap:8px; padding:12px 0; border-bottom:1px solid var(--SmartThemeBorderColor,#7775); }
-.bs-switch-row > strong { font-size:.9em; overflow-wrap:anywhere; }
 .bs-switch-row .menu_button { font-size:.8em; }
 
 /* Preset selection stays with preset controls; schemes sit just below that row. */
@@ -121,9 +118,6 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-preset-launch-name { display:block; flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .bs-pc-switcher { box-sizing:border-box; display:flex; flex-direction:column; min-width:0; gap:4px; padding:0; }
 .bs-preset-switcher { width:100%!important; align-self:stretch; flex:0 0 auto; margin:6px 0 8px; }
-.bs-pc-switcher > .bs-pc-switch-actions { flex-wrap:nowrap!important; overflow-x:auto; min-width:0; padding:1px; scrollbar-width:none; }
-.bs-pc-switcher > .bs-pc-switch-actions > button { box-sizing:border-box; flex:0 0 auto!important; min-height:30px!important; padding:4px 9px!important; margin:0!important; font-size:13px!important; line-height:20px!important; white-space:nowrap!important; writing-mode:horizontal-tb!important; }
-.bs-pc-switcher > small[hidden] { display:none!important; }
 
 /* A calm list picker; editing controls appear only in batch mode. */
 .bs-theme-modal.bs-preset-picker { width:min(560px,calc(100vw - 24px)); height:min(680px,calc(100dvh - 32px)); max-width:calc(100vw - 24px); max-height:calc(100dvh - 32px); margin:auto; border-radius:16px; }
@@ -152,3 +146,11 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-pc-filtering .bs-pc-search-reveal { display:block!important; height:auto!important; max-height:none!important; visibility:visible!important; content-visibility:visible!important; }
 .bs-pc-filtering .drag-handle { pointer-events:none!important; opacity:.25; }
 .bs-pc-search-row > input::-ms-clear { display:none!important; }
+.bs-preset-switcher > .menu_button { align-self:flex-start; width:auto!important; min-height:30px; margin:0; padding:4px 9px; font-size:13px!important; line-height:20px; white-space:nowrap; }
+.bs-switch-modal > .bs-switch-search { box-sizing:border-box; flex:none; width:calc(100% - 32px); min-width:0; min-height:38px; margin:0 16px 8px; font-size:14px; }
+.bs-switch-choose { box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:44px; padding:6px 0; border:0; background:transparent; color:inherit; text-align:left; font:inherit; cursor:pointer; }
+.bs-switch-name { min-width:0; overflow-wrap:anywhere; font-size:15px; line-height:1.5; }
+.bs-switch-state { flex:none; font-size:12px; opacity:.6; }
+.bs-switch-choose[aria-pressed="true"] .bs-switch-name { font-weight:700; }
+.bs-switch-choose[aria-pressed="true"] .bs-switch-state { opacity:1; }
+.bs-switch-choose:focus-visible { outline:2px solid var(--SmartThemeQuoteColor,currentColor); outline-offset:2px; }

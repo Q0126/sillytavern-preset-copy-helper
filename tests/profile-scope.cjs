@@ -27,27 +27,30 @@ const settle=async()=>{await tick();await tick();};
     w.eval(script+'\nwindow.createTool=createPresetTools;');
     const settings={search:true,switchProfiles:[{id:'A',presetName:'Preset A',name:'A-only role',states:structuredClone(statesA)},{id:'B',presetName:'Preset B',name:'B-only role',states:structuredClone(statesB)}]};
     let tool;tool=w.createTool({context:{saveSettingsDebounced(){}},settings,onRefresh:()=>tool?.refresh()});await settle();
-    const chips=()=>[...d.querySelectorAll('.bs-pc-switch-chip')].map(node=>node.textContent);
-    const schemeButton=()=>[...d.querySelectorAll('.bs-preset-switcher button')].find(node=>node.textContent==='角色方案');
+    const names=()=>[...d.querySelectorAll('.bs-switch-name')].map(node=>node.textContent);
+    const schemeButton=()=>d.querySelector('.bs-preset-switcher > button');
+    const open=async()=>{schemeButton().click();await settle();};
+    const close=()=>[...d.querySelectorAll('.bs-switch-modal .bs-theme-header button')].find(node=>node.textContent==='关闭').click();
+    const roleButton=()=>d.querySelector('.bs-switch-choose');
     const choose=value=>{const select=d.querySelector('select');select.value=value;delegate({target:select});};
-    assert.deepEqual(chips(),['A-only role']);const staleA=d.querySelector('.bs-pc-switch-chip');
+    assert.equal(d.querySelector('.bs-preset-switcher').textContent,'角色方案');await open();assert.deepEqual(names(),['A-only role']);const staleA=roleButton();
     // jQuery synthetic change: deliberately do NOT dispatch a native DOM event.
-    choose('1');assert.deepEqual(chips(),['B-only role']);assert.equal(presetManager.getSelectedPresetName(),'Preset A');
-    staleA.click();await settle();assert.equal(writes,0);assert.deepEqual(chips(),['B-only role']);assert.equal(settings.switchProfiles.length,2);
-    choose('2');assert.deepEqual(chips(),[]);choose('0');assert.deepEqual(chips(),['A-only role']);
+    choose('1');assert.equal(d.querySelector('.bs-switch-modal'),null);assert.equal(presetManager.getSelectedPresetName(),'Preset A');
+    staleA.click();await settle();assert.equal(writes,0);await open();assert.deepEqual(names(),['B-only role']);close();assert.equal(settings.switchProfiles.length,2);
+    choose('2');await open();assert.deepEqual(names(),[]);close();choose('0');await open();assert.deepEqual(names(),['A-only role']);close();
     // A DOM replacement also leaves the core manager's cached reference stale.
-    const replacement=cachedSelect.cloneNode(true);replacement.value='1';cachedSelect.replaceWith(replacement);delegate({target:replacement});assert.deepEqual(chips(),['B-only role']);assert.notEqual(presetManager.select[0],d.querySelector('select'));
+    const replacement=cachedSelect.cloneNode(true);replacement.value='1';cachedSelect.replaceWith(replacement);delegate({target:replacement});await open();assert.deepEqual(names(),['B-only role']);assert.notEqual(presetManager.select[0],d.querySelector('select'));
     // B's scheme must wait until B's settings are actually loaded. A and B use
     // identical identifiers here, so identifier overlap cannot hide a bad write.
-    let finishB;pending=new Promise(resolve=>{finishB=resolve;});choose('1');d.querySelector('.bs-pc-switch-chip').click();await settle();assert.equal(writes,0);assert.deepEqual(orderA,statesA);
-    const orderB=structuredClone(statesA);model.prompt_order=[{character_id:100001,order:orderB}];model.preset_settings_openai='Preset B';finishB();await settle();assert.deepEqual(orderB,statesB);assert.deepEqual(orderA,statesA);assert.equal(writes,1);
-    choose('0');assert.deepEqual(chips(),['A-only role']);assert.equal(d.querySelector('.bs-preset-switcher [role=status]').textContent,'');
+    let finishB;pending=new Promise(resolve=>{finishB=resolve;});choose('1');roleButton().click();await settle();assert.equal(writes,0);assert.deepEqual(orderA,statesA);
+    const orderB=structuredClone(statesA);model.prompt_order=[{character_id:100001,order:orderB}];model.preset_settings_openai='Preset B';finishB();await settle();assert.deepEqual(orderB,statesB);assert.deepEqual(orderA,statesA);assert.equal(writes,1);assert.equal(d.querySelector('.bs-switch-modal'),null);
+    choose('0');assert.equal(d.querySelector('.bs-preset-switcher').textContent,'角色方案');
     // Switching presets closes a scheme editor instead of leaving A's list on B.
-    schemeButton().click();await settle();assert.ok(d.querySelector('.bs-switch-modal'));choose('1');assert.equal(d.querySelector('.bs-switch-modal'),null);assert.deepEqual(chips(),['B-only role']);assert.equal(settings.switchProfiles.length,2);
+    await open();assert.ok(d.querySelector('.bs-switch-modal'));choose('1');assert.equal(d.querySelector('.bs-switch-modal'),null);await open();assert.deepEqual(names(),['B-only role']);close();assert.equal(settings.switchProfiles.length,2);
     // Cancelling an in-flight A apply by selecting B cannot write into B.
-    choose('0');let finishA;pending=new Promise(resolve=>{finishA=resolve;});d.querySelector('.bs-pc-switch-chip').click();await settle();const before=JSON.stringify(orderB),beforeWrites=writes;choose('1');finishA();await settle();assert.equal(writes,beforeWrites);assert.equal(JSON.stringify(orderB),before);assert.deepEqual(chips(),['B-only role']);
+    choose('0');await open();let finishA;pending=new Promise(resolve=>{finishA=resolve;});roleButton().click();await settle();const before=JSON.stringify(orderB),beforeWrites=writes;choose('1');finishA();await settle();assert.equal(writes,beforeWrites);assert.equal(JSON.stringify(orderB),before);await open();assert.deepEqual(names(),['B-only role']);close();
     tool.destroy();assert.equal(delegate,null);
     // Reloading on B still uses B, despite stale persisted/cached A metadata.
-    pending=Promise.resolve();model.preset_settings_openai='Preset A';tool=w.createTool({context:{saveSettingsDebounced(){}},settings,onRefresh:()=>tool?.refresh()});await settle();assert.deepEqual(chips(),['B-only role']);assert.equal(settings.switchProfiles.length,2);tool.destroy();
+    pending=Promise.resolve();model.preset_settings_openai='Preset A';tool=w.createTool({context:{saveSettingsDebounced(){}},settings,onRefresh:()=>tool?.refresh()});await settle();await open();assert.deepEqual(names(),['B-only role']);assert.equal(settings.switchProfiles.length,2);tool.destroy();
     dom.window.close();console.log('PASS: live A/B scope, jQuery-only changes, stale manager/select, DOM replacement, unknown preset, old-chip guard, load barrier, cancelled apply, dialog/status cleanup, persistence and listener cleanup.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
