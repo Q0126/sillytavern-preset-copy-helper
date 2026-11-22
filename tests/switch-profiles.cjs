@@ -34,8 +34,8 @@ async function main(){
     controller.destroy();const next=d.createElement('div');d.body.append(next);controller=factory();controller.mount(next);assert.ok(btn('角色 A'));assert.equal(btn('角色 B').getAttribute('aria-pressed'),'true');
     presetName='Other';controller.refresh();assert.equal([...next.querySelectorAll('button')].some(n=>n.textContent==='角色 A'),false);
     controller.renamePreset('Shared','Renamed');presetName='Renamed';controller.refresh();assert.ok(btn('角色 A'));assert.equal(settings.switchProfiles[0].presetName,'Renamed');
-    await run('角色方案');presetName='Changed while open';d.querySelector('[aria-label="角色 / 方案名字"]').value='Should not save';await run('保存当前开关');assert.equal(settings.switchProfiles.length,2);assert.match(d.querySelector('.bs-switch-modal [role=status]').textContent,/切换/);
-    btn('关闭').click();presetName='Renamed';controller.refresh();
+    await run('角色方案');presetName='Changed while open';d.querySelector('[aria-label="角色 / 方案名字"]').value='Should not save';await run('保存当前开关');assert.equal(settings.switchProfiles.length,2);assert.equal(d.querySelector('.bs-switch-modal'),null);
+    presetName='Renamed';controller.refresh();
     await run('角色方案');w.confirm=()=>false;await run('删除方案');assert.equal(settings.switchProfiles.length,2);w.confirm=()=>true;
     // Updating a scheme never appends a duplicate and uses fresh current switches.
     order[0].enabled=true;await run('更新为当前开关');assert.equal(settings.switchProfiles.length,2);assert.equal(settings.switchProfiles[0].states[0].enabled,true);

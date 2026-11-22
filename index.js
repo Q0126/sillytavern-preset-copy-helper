@@ -142,7 +142,7 @@ function init() {
     },{capture:true,passive:true});
     for(const type of ['pointerup','pointercancel']) listen(document,type,()=>{if(touchScroll){clearTimeout(restoreTimer);restoreTimer=setTimeout(()=>{restoreSelection();touchScroll=null;},180);}},true);
     const refreshEvents=['CHAT_CHANGED','CHARACTER_MESSAGE_RENDERED','USER_MESSAGE_RENDERED','MESSAGE_EDITED','MESSAGE_SWIPED','GENERATION_ENDED','PRESET_CHANGED','OAI_PRESET_CHANGED_AFTER','SETTINGS_UPDATED'];
-    for(const name of refreshEvents){const type=(ctx.eventTypes ?? ctx.event_types)?.[name];if(type && ctx.eventSource?.on){ctx.eventSource.on(type,queueRefresh);subscriptions.push([type,queueRefresh]);}}
+    for(const name of refreshEvents){const type=ctx.eventTypes?.[name] ?? ctx.event_types?.[name];if(type && ctx.eventSource?.on){ctx.eventSource.on(type,queueRefresh);subscriptions.push([type,queueRefresh]);}}
 
 }
 export function onDisable() {

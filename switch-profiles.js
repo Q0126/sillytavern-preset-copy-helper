@@ -44,10 +44,16 @@ export async function applySwitches(manager, states) {
 
 // Only identifiers and boolean switches are stored. Prompt contents and ordering
 // stay in the shared preset; each preset has its own independent named schemes.
-export function createSwitchProfiles({context,settings,getManager,getPresetName,onRefresh}) {
+export function createSwitchProfiles({context,settings,getManager,getPresetName,waitForPreset=async()=>{},onRefresh}) {
     if(!Array.isArray(settings.switchProfiles)) settings.switchProfiles=[];
     let destroyed=false,busy=false,dialog=null,message='';
     const hosts=new Set();
+    let displayedPreset=getPresetName();
+    async function ensurePreset(name) {
+        if(destroyed||getPresetName()!==name)throw new Error('当前预设已切换，请重新打开角色方案。');
+        await waitForPreset();
+        if(destroyed||getPresetName()!==name)throw new Error('当前预设已切换，请重新打开角色方案。');
+    }
     const profiles=()=>settings.switchProfiles.filter(profile=>profile.presetName===getPresetName());
     const save=()=>context.saveSettingsDebounced?.();
     const currentMatches=profile=>{
@@ -64,14 +70,20 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         if(profile.presetName!==getPresetName()) {report(new Error('当前预设已切换，请选择当前预设的方案。'));return;}
         busy=true;message=`正在切换到「${profile.name}」…`;refresh();
         try {
+            await ensurePreset(profile.presetName);
             const result=await applySwitches(getManager(),profile.states);
+            if(getPresetName()!==profile.presetName)return;
             message=`已切换「${profile.name}」`;
             if(result.added||result.missing) message+=` · ${result.added} 个新增条目保持原开关，${result.missing} 个旧条目已失效，可重新保存方案`;
-        } catch(error) { message=`切换失败：${error.message}`; }
+        } catch(error) { if(getPresetName()===profile.presetName)message=`切换失败：${error.message}`; }
         finally {busy=false;if(!destroyed){refresh();onRefresh();}}
     }
     function mount(host) {hosts.add(host);refresh();}
     function refresh() {
+        const selectedPreset=getPresetName();
+        if(displayedPreset!==selectedPreset) {
+            displayedPreset=selectedPreset;message='';dialog?.close();
+        }
         for(const host of hosts) {
             if(!host.isConnected) {hosts.delete(host);continue;}
             const list=profiles();
@@ -98,6 +110,8 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         if(destroyed||dialog?.open) return;
         const presetName=getPresetName();
         if(!presetName || !getManager()) throw new Error('请先选择一份 Chat Completion 预设。');
+        await ensurePreset(presetName);
+        if(dialog?.open||destroyed)return;
         captureSwitches(getManager());
         const modal=el('dialog',{className:'bs-theme-modal bs-preset-modal bs-switch-modal'});dialog=modal;
         const header=el('div',{className:'bs-theme-header'});
@@ -120,24 +134,24 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
                     try {
                         assertCurrent();
                         if(!await confirm(`用当前的条目开关更新「${profile.name}」？`))return;
-                        assertCurrent();if(destroyed)return;
+                        assertCurrent();await ensurePreset(presetName);
                         profile.states=captureSwitches(getManager());save();message=`已更新「${profile.name}」`;refresh();
                     }catch(error){report(error);}
                 }));
                 buttons.append(button('删除方案',async()=>{
                     if(busy)return;
                     if(!await confirm(`删除方案「${profile.name}」？预设条目不会被删除。`))return;
-                    if(destroyed)return;
+                    if(destroyed||presetName!==getPresetName())return;
                     settings.switchProfiles=settings.switchProfiles.filter(item=>item.id!==profile.id);save();message='方案已删除';render();refresh();
                 }));
                 row.append(buttons);list.append(row);
             }
             if(!list.childElementCount)list.append(el('p',{},'还没有方案。先在原列表调好开关，再填写名字保存。'));
         };
-        actions.append(name,button('保存当前开关',()=>{
+        actions.append(name,button('保存当前开关',async()=>{
             if(busy)return;
             try {
-                assertCurrent();const text=name.value.trim();if(!text)throw new Error('请填写角色或方案名字。');
+                assertCurrent();await ensurePreset(presetName);const text=name.value.trim();if(!text)throw new Error('请填写角色或方案名字。');
                 if(settings.switchProfiles.some(profile=>profile.presetName===presetName&&profile.name===text))throw new Error('同名方案已存在，请点它旁边的“更新为当前开关”。');
                 settings.switchProfiles.push({id:globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random()}`,presetName,name:text,states:captureSwitches(getManager())});
                 save();message=`已保存「${text}」`;name.value='';render();refresh();

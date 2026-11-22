@@ -66,7 +66,21 @@ export function createPresetTools({ context, settings, onRefresh }) {
         .then(() => { if (!destroyed) onRefresh(); });
     const notify = message => globalThis.toastr?.error?.(message);
     function getManager() { return presetModule?.getPresetManager?.('openai'); }
-    const switchProfiles=createSwitchProfiles({context,settings,getManager:pm,getPresetName:()=>getManager()?.getSelectedPresetName?.() || fallback().preset_settings_openai || '',onRefresh});
+    // A manager may retain an old select after another extension replaces the UI.
+    // The live selected option owns scope; never prefer a cached manager label.
+    function currentPresetName() {
+        const select=document.querySelector('select#settings_preset_openai');
+        return select ? (select.selectedOptions?.[0]?.textContent ?? '') : (fallback().preset_settings_openai ?? '');
+    }
+    const waitForPreset=async()=>{await openai?.getPresetApplicationPromise?.();};
+    const switchProfiles=createSwitchProfiles({context,settings,getManager:pm,getPresetName:currentPresetName,waitForPreset,onRefresh});
+    let jqueryDocument=null;
+    function bindPresetChanges() {
+        if(!jqueryDocument&&window.jQuery?.fn?.on) {
+            jqueryDocument=window.jQuery(document);
+            jqueryDocument.on('change.bsPcPresetTools','#settings_preset_openai',onNativeChange);
+        }
+    }
     const nativeSearch=createNativePromptSearch({getManager:pm,onRefresh});
     function entries() { return currentPrompts(pm(), fallback()); }
     function mountPresetPicker() {
@@ -96,10 +110,14 @@ export function createPresetTools({ context, settings, onRefresh }) {
         }
         presetLaunch.title=name+' · 选择 / 批量管理';
     }
-    function onNativeChange(event) {if(event.target===nativeSelect)onRefresh();}
+    function onNativeChange(event) {
+        if(event.target?.id!=='settings_preset_openai')return;
+        switchProfiles.refresh();onRefresh();
+        void waitForPreset().then(()=>{if(!destroyed){switchProfiles.refresh();onRefresh();}}).catch(error=>notify(error.message));
+    }
     document.addEventListener('change',onNativeChange);
     function refresh() {
-        mountPresetPicker();
+        bindPresetChanges();mountPresetPicker();
         for (const [list, state] of bars) if (!list.isConnected) { nativeSearch.restore(list);state.bar.remove();bars.delete(list); }
         for (const list of document.querySelectorAll(LIST)) {
             list.classList.toggle('bs-pc-compact-list',settings.search);
@@ -148,7 +166,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
         if (index === undefined || !data) throw new Error(`预设已发生变化，请重新打开：${item.name}`);
         const select = document.querySelector('#settings_preset_openai');
         const option = [...(select?.options ?? [])].find(option => option.text === item.name);
-        const wasCurrent = manager.getSelectedPresetName() === item.name;
+        const wasCurrent = currentPresetName() === item.name;
         if (newName) {
             if (Object.keys(preset_names).some(name => norm(name) === norm(newName) && name !== item.name)) throw new Error(`名称已存在：${newName}`);
             const response = await post('/api/presets/save', { name:newName, preset:clone(data), apiId:'openai' });
@@ -234,7 +252,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
                 if(!editing) {
                     const option=button('',async()=>{
                         if(busy)return;
-                        if(manager.getSelectedPresetName()===item.name){dialog.close();return;}
+                        if(currentPresetName()===item.name){dialog.close();return;}
                         setBusy(true);
                         try {
                             const nativeOption=[...(nativeSelect?.options??[])].find(option=>option.text===item.name);
@@ -247,7 +265,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
                         finally{setBusy(false);onRefresh();}
                     });
                     option.className='bs-preset-option';
-                    const active=manager.getSelectedPresetName()===item.name;
+                    const active=currentPresetName()===item.name;
                     option.setAttribute('aria-pressed',String(active));
                     option.append(el('span',{className:'bs-preset-option-name'},item.name),el('small',{className:'bs-preset-option-state'},active?'当前使用':'选择'));
                     list.append(option);continue;
@@ -329,7 +347,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
     }
     function destroy() {
         destroyed=true;nativeSearch.destroy();switchProfiles.destroy();
-        selectObserver?.disconnect();nativeSelect?.classList.remove('bs-preset-native-hidden');presetLaunch?.remove();switchHost?.remove();document.removeEventListener('change',onNativeChange);
+        selectObserver?.disconnect();nativeSelect?.classList.remove('bs-preset-native-hidden');presetLaunch?.remove();switchHost?.remove();document.removeEventListener('change',onNativeChange);jqueryDocument?.off('change.bsPcPresetTools','#settings_preset_openai',onNativeChange);
         for(const [list,state] of bars) {list.classList.remove('bs-pc-search-list-hidden','bs-pc-compact-list');state.bar.remove();}
         bars.clear();modal?.close();modal?.remove();modal=null;
     }
