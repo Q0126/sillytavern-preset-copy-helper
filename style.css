@@ -176,3 +176,4 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-switch-recovery { font-size:12px; margin:8px 0; }
 .bs-switch-recover-row { display:flex; flex-direction:column; gap:6px; padding:8px 0; }
 .bs-switch-preset-label { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:12px; }
+.bs-switch-match-note { display:block; margin:2px 0 6px; font-size:12px; line-height:1.5; opacity:.7; }

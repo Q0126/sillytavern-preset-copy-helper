@@ -85,7 +85,9 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         const scope=catalogScopes.get(name);
         return !scope||switchFit(profile,scope)>=.5;
     };
-    const profiles=()=>settings.switchProfiles.filter(profile=>profile.presetName===getPresetName()&&compatible(profile));
+    const confirmed=profile=>profile.confirmedPresetName===profile.presetName;
+    const visible=profile=>confirmed(profile)||compatible(profile);
+    const profiles=()=>settings.switchProfiles.filter(profile=>profile.presetName===getPresetName()&&visible(profile));
     function checkBindings(){catalog=getPresetCatalog()??[];catalogScopes=new Map(switchCatalog(catalog).map(item=>[item.name,item]));if(repairSwitchProfileBindings(settings.switchProfiles,catalog)){save();renderDialog?.();}}
     function captureCurrent(name){
         const states=captureSwitches(getManager());
@@ -108,8 +110,9 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         busy=true;message=`正在切换到「${profile.name}」…`;refresh();
         try {
             await ensurePreset(profile.presetName);checkBindings();
-            if(profile.presetName!==getPresetName()||!compatible(profile))throw new Error('这个旧方案不属于当前预设，请在“⋯”中调整归属。');
-            captureCurrent(profile.presetName);
+            if(profile.presetName!==getPresetName()||!visible(profile))throw new Error('这个旧方案不属于当前预设，请在“⋯”中调整归属。');
+            const current=captureCurrent(profile.presetName),savedIds=switchIds(profile.states),currentIds=switchIds(current);
+            if(savedIds.size&&![...savedIds].some(id=>currentIds.has(id)))throw new Error('原方案条目已无法匹配。请先调好当前开关，再点“⋯ → 更新为当前开关”。');
             const result=await applySwitches(getManager(),profile.states);
             if(getPresetName()!==profile.presetName)return false;
             message=`已切换「${profile.name}」`;
@@ -166,6 +169,15 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         const list=el('div',{className:'bs-theme-scroll'});
         const status=el('div',{className:'bs-theme-status',role:'status'});
         const assertCurrent=()=>{if(presetName!==getPresetName())throw new Error('当前预设已切换，请重新打开角色方案。');};
+        const assignOwner=(profile,target)=>{
+            if(busy||destroyed||presetName!==getPresetName())return;
+            if(!catalog.some(item=>item.name===target)){report(new Error('目标预设已不存在，请重新打开角色方案。'));return;}
+            if(profile.presetName!==target)profile.previousPresetName=profile.presetName;
+            profile.presetName=target;profile.confirmedPresetName=target;profile.bindingVersion=2;
+            save();search.value='';message=`已确认「${profile.name}」归属到「${target}」`;
+            if(target!==presetName)message+='，切换到该预设后可查看。';
+            render();refresh();
+        };
         const render=()=>{
             list.replaceChildren();
             const query=search.value.normalize('NFKC').toLocaleLowerCase().trim();
@@ -186,7 +198,7 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
                         assertCurrent();
                         if(!await confirm(`用当前的条目开关更新「${profile.name}」？`))return;
                         assertCurrent();await ensurePreset(presetName);
-                        checkBindings();profile.states=captureCurrent(presetName);profile.bindingVersion=2;save();message=`已更新「${profile.name}」`;refresh();
+                        checkBindings();profile.states=captureCurrent(presetName);profile.bindingVersion=2;save();message=`已更新「${profile.name}」`;render();refresh();
                     }catch(error){report(error);}
                 }));
                 buttons.append(button('删除方案',async()=>{
@@ -201,21 +213,25 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
                 buttons.append(el('small',{},'所属预设'),owner,button('保存归属',async()=>{
                     if(busy||!owner.value)return;
                     const target=owner.value;
-                    if(target===profile.presetName){menu.open=false;return;}
-                    if(!await confirm(`把「${profile.name}」移到预设「${target}」？方案的开关记录会保留。`))return;
+                    if(target!==profile.presetName&&!await confirm(`把「${profile.name}」移到预设「${target}」？方案的开关记录会保留。`))return;
                     if(destroyed||presetName!==getPresetName())return;
-                    profile.previousPresetName=profile.presetName;profile.presetName=target;profile.bindingVersion=2;save();message='方案归属已调整';render();refresh();
+                    assignOwner(profile,target);
                 }));
                 menu.append(buttons);list.append(row);
+                const scope=catalogScopes.get(profile.presetName),ids=switchIds(profile.states);
+                if(confirmed(profile)&&scope&&ids.size){
+                    const matched=[...ids].filter(id=>scope.ids.has(id)).length;
+                    if(matched<ids.size)row.append(el('small',{className:'bs-switch-match-note'},matched ? `${ids.size-matched} 个原条目无法匹配；使用时只切换仍匹配的条目，也可在“⋯”中更新方案。` : '原方案条目无法匹配。请调好当前开关，再点“⋯ → 更新为当前开关”。'));
+                }
             }
             if(!list.childElementCount)list.append(el('p',{},search.value?'没有匹配的角色方案':'当前预设还没有角色方案。'));
-            const unresolved=settings.switchProfiles.filter(profile=>profile.presetName===presetName&&!compatible(profile));
+            const unresolved=settings.switchProfiles.filter(profile=>profile.presetName===presetName&&!visible(profile));
             if(unresolved.length){
                 const recovery=el('details',{className:'bs-switch-recovery'});recovery.append(el('summary',{},`待确认归属的旧方案（${unresolved.length}）`));
                 for(const profile of unresolved){
                     const row=el('div',{className:'bs-switch-recover-row'}),owner=el('select',{className:'text_pole'});
                     owner.setAttribute('aria-label',`修复归属 ${profile.name}`);for(const item of catalog)owner.append(el('option',{value:item.name},item.name));owner.value=profile.presetName;
-                    row.append(el('span',{},profile.name),owner,button('调整归属',()=>{if(destroyed||presetName!==getPresetName()||!owner.value)return;profile.previousPresetName=profile.presetName;profile.presetName=owner.value;profile.bindingVersion=2;save();render();refresh();}));recovery.append(row);
+                    row.append(el('span',{},profile.name),owner,button('调整归属',()=>assignOwner(profile,owner.value)));recovery.append(row);
                 }
                 list.append(recovery);
             }
@@ -239,7 +255,7 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         modal.addEventListener('close',()=>{modal.remove();if(dialog===modal){dialog=null;renderDialog=null;}});
         document.body.append(modal);render();modal.showModal();refresh();
     }
-    function renamePreset(oldName,newName) {for(const profile of settings.switchProfiles)if(profile.presetName===oldName)profile.presetName=newName;save();}
+    function renamePreset(oldName,newName) {for(const profile of settings.switchProfiles)if(profile.presetName===oldName){if(profile.confirmedPresetName===oldName)profile.confirmedPresetName=newName;profile.presetName=newName;}save();}
     function deletePreset(name) {settings.switchProfiles=settings.switchProfiles.filter(profile=>profile.presetName!==name);save();}
     function destroy() {destroyed=true;for(const host of hosts)host.remove();hosts.clear();dialog?.close();dialog?.remove();dialog=null;}
     return {mount,refresh,renamePreset,deletePreset,destroy};
