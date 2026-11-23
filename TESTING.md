@@ -1,5 +1,12 @@
 # 验证记录
 
+## v1.6.10
+
+- 核对 `baibai-git/ST-BaiBai-Tools` 的 `src/preset/vueList.js` / `vueRender.js`：其 Vue 应用拥有 `.bai-bai-preset-vue-list-host` 及内含的分组、拖动列表。旧实现会在该容器内加搜索栏、在列表内加未挂载条目的补充行；新增隔离回归用例在旧实现上失败。
+- 新增 `tests/toolbox-compat.cjs`，验证搜索工具栏和补充行均在 Vue 挂载区域外、切换前清理、A/B/A/B 分组更新、折叠条目搜索、工具栏及列表重建、禁用清理。测试同时用柏宝箱自带的真实 Vue 3.5.35 与 VueDraggableNext 2.3.0 运行通过；宿主分组数据与酒馆接口为模拟。
+- 实际组件测试命令：`BAIBAI_SOURCE=/path/to/ST-BaiBai-Tools NODE_PATH=/path/to/jsdom/node_modules node --experimental-vm-modules tests/toolbox-compat.cjs`。默认不设置 `BAIBAI_SOURCE` 时运行 DOM 集成用例。
+- 原有方案、归属隔离、旧方案修复、批量管理与原生搜索回归通过；全部 JS 语法及 diff 检查通过。未接入用户手机安装的具体版本。
+
 ## v1.6.9
 
 - 复现修复前点击“调整归属”选择当前预设后仍停在待确认列表；修复后验证同预设确认、跨预设移动、成功提示、重新建立控制器及 JSON 持久化后仍保留手动归属。

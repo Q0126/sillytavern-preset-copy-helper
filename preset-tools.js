@@ -92,6 +92,11 @@ export function createPresetTools({ context, settings, onRefresh }) {
         }
     }
     const nativeSearch=createNativePromptSearch({getManager:pm,onRefresh});
+    let searchPreset=currentPresetName();
+    function clearPresetSearch(){query='';nativeSearch.destroy();for(const state of bars.values()){state.input.value='';state.clearButton.hidden=true;state.count.hidden=true;}}
+    function syncSearchPreset(){const name=currentPresetName();if(name!==searchPreset){searchPreset=name;clearPresetSearch();}}
+    const beforePresetEvent=context.eventTypes?.OAI_PRESET_CHANGED_BEFORE??context.event_types?.OAI_PRESET_CHANGED_BEFORE;
+    if(beforePresetEvent)context.eventSource?.on?.(beforePresetEvent,clearPresetSearch);
     function entries() { return currentPrompts(pm(), fallback()); }
     function mountPresetPicker() {
         const select=document.querySelector('select#settings_preset_openai');
@@ -122,17 +127,19 @@ export function createPresetTools({ context, settings, onRefresh }) {
     }
     function onNativeChange(event) {
         if(event.target?.id!=='settings_preset_openai')return;
+        syncSearchPreset();
         switchProfiles.refresh();onRefresh();
         void waitForPreset().then(()=>{if(!destroyed){switchProfiles.refresh();onRefresh();}}).catch(error=>notify(error.message));
     }
     document.addEventListener('change',onNativeChange);
     function refresh() {
-        bindPresetChanges();mountPresetPicker();
+        syncSearchPreset();bindPresetChanges();mountPresetPicker();
         for (const [list, state] of bars) if (!list.isConnected) { nativeSearch.restore(list);state.bar.remove();bars.delete(list); }
         for (const list of document.querySelectorAll(LIST)) {
             list.classList.toggle('bs-pc-compact-list',settings.search);
             let state = bars.get(list);
             if (!state || !state.bar.isConnected) {
+                nativeSearch.restore(list);
                 const bar = el('div', { className:'bs-pc-search' });
                 const row = el('div', { className:'bs-pc-search-row' });
                 const input = el('input', { type:'text', inputMode:'search', enterKeyHint:'search', className:'text_pole', value:query, placeholder:'搜索条目名称 / 内容', autocomplete:'off' });
@@ -141,11 +148,14 @@ export function createPresetTools({ context, settings, onRefresh }) {
                 const clearButton=button('×',clear);clearButton.className='bs-pc-search-clear';clearButton.title='清除搜索';clearButton.setAttribute('aria-label','清除搜索');
                 row.append(input,clearButton);
                 const count = el('small', { role:'status', className:'bs-pc-count' });
-                bar.append(row,count);list.before(bar);
-                state = { bar,input,clearButton,count }; bars.set(list, state);
+                const results=el('ul',{className:'text_pole bs-pc-search-results',hidden:true});
+                bar.append(row,count,results);nativeSearch.anchor(list).before(bar);
+                state = { bar,input,clearButton,count,results }; bars.set(list, state);
                 input.addEventListener('input', () => { query=input.value; refresh(); });
                 input.addEventListener('keydown', event => { if (event.key==='Escape') { event.stopPropagation(); clear(); } });
             }
+            const anchor=nativeSearch.anchor(list);
+            if(state.bar.parentElement!==anchor.parentElement)anchor.before(state.bar);
             state.bar.hidden = !settings.search;
             if (state.input.value !== query) state.input.value = query;
             const terms = settings.search ? termsFor(query) : [];
@@ -154,7 +164,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
             const rows = [...list.querySelectorAll('[data-pm-identifier]')];
             const data = prompts.length ? prompts : rows.map(row => ({ identifier:row.dataset.pmIdentifier, name:row.querySelector('[data-pm-name]')?.dataset.pmName ?? row.textContent, content:'' }));
             const found = terms.length ? data.filter(p => matches(`${p.name}\n${p.content ?? ''}`, terms)) : [];
-            nativeSearch.filter(list,found,!!terms.length);
+            nativeSearch.filter(list,found,!!terms.length,state.results);
             const message=terms.length ? `找到 ${found.length} / ${data.length} 条${found.length?'':'，试试其他关键词'}` : `${data.length} 条`;
             if (state.count.textContent !== message) state.count.textContent = message;
         }
@@ -357,6 +367,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
     }
     function destroy() {
         destroyed=true;nativeSearch.destroy();switchProfiles.destroy();
+        if(beforePresetEvent)context.eventSource?.removeListener?.(beforePresetEvent,clearPresetSearch);
         selectObserver?.disconnect();nativeSelect?.classList.remove('bs-preset-native-hidden');presetLaunch?.remove();switchHost?.remove();document.removeEventListener('change',onNativeChange);jqueryDocument?.off('change.bsPcPresetTools','#settings_preset_openai',onNativeChange);
         for(const [list,state] of bars) {list.classList.remove('bs-pc-search-list-hidden','bs-pc-compact-list');state.bar.remove();}
         bars.clear();modal?.close();modal?.remove();modal=null;

@@ -52,7 +52,7 @@ async function main() {
     assert.equal(d.querySelector('[data-pm-identifier="a"]'),originalA);assert.equal(originalA.classList.contains('bs-pc-hidden'),false);assert.equal(originalA.parentElement.classList.contains('bs-pc-search-reveal'),true);
     originalEdit.click();assert.equal(edited,'a');assert.equal(d.querySelector('.bs-pc-results'),null);
     assert.equal(d.querySelectorAll('.bs-pc-result-toggle').length,0);
-    d.querySelector('ul').innerHTML='<section hidden><li data-pm-identifier="a">重复</li></section>';tool.refresh();assert.equal(d.querySelector('[data-pm-identifier="a"]').classList.contains('bs-pc-hidden'),false);
+    d.querySelector('#completion_prompt_manager_list').innerHTML='<section hidden><li data-pm-identifier="a">重复</li></section>';tool.refresh();assert.equal(d.querySelector('[data-pm-identifier="a"]').classList.contains('bs-pc-hidden'),false);
     // Missing / virtual rows use the native classes and actions, never custom controls.
     const beforePrompts=JSON.stringify(model.prompts),beforeIds=model.prompt_order[0].order.map(p=>p.identifier).join(',');
     input(search,'other');let fallback=d.querySelector('[data-bs-pc-fallback]');assert.ok(fallback.classList.contains('completion_prompt_manager_prompt'));fallback.querySelector('.prompt-manager-edit-action').click();assert.equal(edited,'b');
@@ -61,7 +61,7 @@ async function main() {
     failSettings=true;d.querySelector('[data-bs-pc-fallback] .prompt-manager-toggle-action').click();await tick();await tick();assert.equal(model.prompt_order[0].order[1].enabled,true);failSettings=false;
     assert.equal(JSON.stringify(model.prompts),beforePrompts);assert.equal(model.prompt_order[0].order.map(p=>p.identifier).join(','),beforeIds);
     input(search,'system');assert.equal(d.querySelector('[data-bs-pc-fallback] .prompt-manager-toggle-action'),null);input(search,'HIDDEN needle');
-    input(search,'missing');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0/);btn('×').click();assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
+    input(search,'missing');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0/);btn('×').click();assert.equal(d.querySelector('#completion_prompt_manager_list').classList.contains('bs-pc-search-list-hidden'),false);
     d.querySelector('#bs-preset-launch').click();await tick();await run('批量管理');input(draft('A'),'Alpha');input(draft('B'),'Beta');await run('保存改名');assert.match(status(),/已改名 2/);
     assert.deepEqual(calls.filter(c=>c.url.endsWith('/save')).map(c=>c.preset.prompts[0].content),['AAA','BBB']);assert.equal(model.preset_settings_openai,'Alpha');assert.equal(settings.switchProfiles[0].presetName,'Alpha');assert.equal(model.prompts[0].content,'only hidden needle');
     const count=calls.length;input(draft('Alpha'),'C');await run('保存改名');assert.equal(calls.length,count);assert.match(status(),/重复|原名称/);
@@ -81,7 +81,7 @@ async function main() {
     await run('取消选择');check('Alpha');await run('删除已选');assert.equal(preset_names.Alpha,undefined);assert.equal(settings.switchProfiles.length,0);assert.ok(model.preset_settings_openai);assert.notEqual(model.preset_settings_openai,'Alpha');
     await run('全选搜索结果');const beforeAll=calls.length;await run('删除已选');assert.equal(calls.length,beforeAll);assert.match(status(),/保留/);
     await run('当前条目');const oldName=model.prompts[0].name;input(draft(oldName),'Should not change');pm.activeCharacter={id:100002};await run('保存改名');assert.equal(model.prompts[0].name,oldName);assert.match(status(),/切换/);pm.activeCharacter={id:100001};
-    btn('关闭').click();input(search,'system');tool.destroy();assert.equal(d.querySelectorAll('.bs-pc-search').length,0);assert.equal(select.classList.contains('bs-preset-native-hidden'),false);assert.equal(d.querySelector('#bs-preset-launch'),null);assert.equal(d.querySelector('.bs-preset-switcher'),null);assert.equal(d.querySelector('ul').classList.contains('bs-pc-search-list-hidden'),false);
+    btn('关闭').click();input(search,'system');tool.destroy();assert.equal(d.querySelectorAll('.bs-pc-search').length,0);assert.equal(select.classList.contains('bs-preset-native-hidden'),false);assert.equal(d.querySelector('#bs-preset-launch'),null);assert.equal(d.querySelector('.bs-preset-switcher'),null);assert.equal(d.querySelector('#completion_prompt_manager_list').classList.contains('bs-pc-search-list-hidden'),false);
     dom.window.close();
     console.log('PASS: model-based folded search, rerender, no-results/clear, edit, batch file rename, own-content preservation, duplicate protection, entry rename/delete, built-in protection, rollback, server errors, partial rename, active-preset guard, cleanup.');
 }

@@ -7,6 +7,8 @@
 .bs-pc-search-clear[hidden],.bs-pc-count[hidden] { display:none!important; }
 .bs-pc-search > .bs-pc-count { display:block; margin:4px 0; padding:0; font-size:12px; line-height:18px; opacity:.7; text-align:right; }
 .bs-pc-hidden { display:none !important; }
+.bs-pc-search-results { width:100%; margin:4px 0 0; padding:0; list-style:none; }
+.bs-pc-search-results[hidden] { display:none!important; }
 .bs-pc-filtering .drag-handle { opacity:.25; pointer-events:none; }
 body.bs-pc-protect #chat .mes { -webkit-user-select:none; user-select:none; }
 body.bs-pc-protect #chat .mes .mes_text,

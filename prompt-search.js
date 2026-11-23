@@ -6,6 +6,12 @@ function nativeElement(tag,className,text) {
 export function createNativePromptSearch({getManager,onRefresh}) {
     const lists=new Map();
     const pending=new Set();
+    // BaiBai owns this entire Vue mount, including the list's siblings. Keep
+    // plugin UI outside it; Sortable/Vue must see only their own child nodes.
+    const anchor=list=>{
+        const host=list.closest('.bai-bai-preset-vue-list-host,[data-v-app]');
+        return !host||host===document.body||host===document.documentElement ? list : host;
+    };
     function bind(action,handler) {
         action.setAttribute('role','button');action.tabIndex=0;
         action.addEventListener('click',handler);
@@ -69,12 +75,14 @@ export function createNativePromptSearch({getManager,onRefresh}) {
     function restore(list) {
         const state=lists.get(list);list.classList.remove('bs-pc-search-list-hidden','bs-pc-filtering');
         if(!state)return;
-        resetMarks(state);for(const row of state.fallback.values())row.remove();setSorting(list,state,false);lists.delete(list);
+        resetMarks(state);for(const row of state.fallback.values())row.remove();
+        if(state.results){state.results.hidden=true;if(state.ownsResults)state.results.remove();}
+        setSorting(list,state,false);lists.delete(list);
     }
-    function filter(list,found,active) {
+    function filter(list,found,active,results) {
         if(!active){restore(list);return;}
         let state=lists.get(list);
-        if(!state){state={marked:new Set(),fallback:new Map(),sorting:undefined};lists.set(list,state);}
+        if(!state){state={marked:new Set(),fallback:new Map(),sorting:undefined,results,ownsResults:!results};lists.set(list,state);}
         resetMarks(state);list.classList.remove('bs-pc-search-list-hidden');list.classList.add('bs-pc-filtering');setSorting(list,state,true);
         const ids=new Set(found.map(prompt=>String(prompt.identifier)));
         const original=[...list.querySelectorAll('[data-pm-identifier]')].filter(row=>row.dataset.bsPcFallback!=='true');
@@ -86,8 +94,10 @@ export function createNativePromptSearch({getManager,onRefresh}) {
             let row=state.fallback.get(id);
             if(row?.dataset.bsPcSignature===signature)continue;
             const next=nativeRow(prompt,list);next.dataset.bsPcSignature=signature;
-            if(row)row.replaceWith(next);else list.append(next);state.fallback.set(id,next);
+            if(!state.results){state.results=nativeElement('ul','text_pole bs-pc-search-results');anchor(list).before(state.results);}
+            if(row)row.replaceWith(next);else state.results.append(next);state.fallback.set(id,next);
         }
+        if(state.results)state.results.hidden=!state.fallback.size;
         const ancestors=new Set(),visible=new Set();
         for(const row of original) {
             const match=ids.has(row.dataset.pmIdentifier);
@@ -99,5 +109,5 @@ export function createNativePromptSearch({getManager,onRefresh}) {
         for(const container of ancestors){container.classList.toggle('bs-pc-hidden',!visible.has(container));container.classList.toggle('bs-pc-search-reveal',visible.has(container));state.marked.add(container);}
     }
     function destroy(){for(const list of [...lists.keys()])restore(list);}
-    return {filter,restore,destroy};
+    return {filter,restore,destroy,anchor};
 }
