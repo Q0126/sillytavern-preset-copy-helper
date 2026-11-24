@@ -1,9 +1,9 @@
-import { createThemeGallery } from './theme-gallery.js?v=1.7.4';
-import { createPresetTools } from './preset-tools.js?v=1.7.4';
-import { createWorldbookTools } from './worldbook-tools.js?v=1.7.4';
+import { createThemeGallery } from './theme-gallery.js?v=1.7.5';
+import { createPresetTools } from './preset-tools.js?v=1.7.5';
+import { createWorldbookTools } from './worldbook-tools.js?v=1.7.5';
 // SillyTavern UI extension. Data changes require explicit management actions.
 const KEY = 'baishui_preset_copy';
-const VERSION = '1.7.4';
+const VERSION = '1.7.5';
 const defaults = { search: true, protect: true, themeGallery: true, worldBooks: true };
 const LIST = '[id$="prompt_manager_list"]';
 const BODY = '#chat .mes .mes_text';

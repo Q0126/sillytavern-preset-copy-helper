@@ -1,6 +1,7 @@
-import { createNativePromptSearch } from './prompt-search.js?v=1.7.4';
-import { createSwitchProfiles } from './switch-profiles.js?v=1.7.4';
-import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.7.4';
+import { createNativePromptSearch } from './prompt-search.js?v=1.7.5';
+import { createSwitchProfiles } from './switch-profiles.js?v=1.7.5';
+import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.7.5';
+import { createPresetDefaults } from './preset-defaults.js?v=1.7.5';
 const LIST = '[id$="prompt_manager_list"]';
 const norm = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const termsFor = query => norm(query).trim().split(/\s+/u).filter(Boolean);
@@ -60,11 +61,12 @@ export function createPresetTools({ context, settings, onRefresh }) {
     let nativeSelect=null,presetLaunch=null,switchHost=null,selectObserver=null;
     const pm = () => openai?.promptManager;
     const fallback = () => openai?.oai_settings ?? context.chatCompletionSettings ?? {};
+    const originalDefaults=createPresetDefaults({settings,onSave:()=>context.saveSettingsDebounced?.()});
     const ready = Promise.all([
         import('../../../openai.js').then(module => { openai = module; }),
         import('../../../preset-manager.js').then(module => { presetModule = module; }),
     ].map(promise => promise.catch(error => console.warn('[白水预设工具]', error))))
-        .then(() => { if (!destroyed) onRefresh(); });
+        .then(() => { if (!destroyed) { capturePresetDefaults();onRefresh(); } });
     const notify = message => globalThis.toastr?.error?.(message);
     function getManager() { return presetModule?.getPresetManager?.('openai'); }
     // A manager may retain an old select after another extension replaces the UI.
@@ -74,6 +76,17 @@ export function createPresetTools({ context, settings, onRefresh }) {
         return select ? (select.selectedOptions?.[0]?.textContent ?? '') : (fallback().preset_settings_openai ?? '');
     }
     const waitForPreset=async()=>{await openai?.getPresetApplicationPromise?.();};
+    function savedPreset(name){
+        const manager=getManager(),preset=manager?.getCompletionPresetByName?.(name);if(preset)return preset;
+        const list=manager?.getPresetList?.(),index=Array.isArray(list?.preset_names)?list.preset_names.indexOf(name):list?.preset_names?.[name];return list?.presets?.[index];
+    }
+    function capturePresetDefaults(){
+        // Capture the entire saved catalog, including presets not selected yet.
+        // Never snapshot oai_settings: it may contain unsaved manual edits.
+        const list=getManager()?.getPresetList?.(),names=new Set([...(document.querySelector('select#settings_preset_openai')?.options??[])].map(option=>option.text));
+        for(const name of Array.isArray(list?.preset_names)?list.preset_names:Object.keys(list?.preset_names??{}))names.add(name);
+        originalDefaults.capture([...names].filter(name=>!originalDefaults.get(name)).map(name=>({name,preset:savedPreset(name)})));
+    }
     function presetCatalog(){
         const manager=getManager();
         const names=[...(document.querySelector('select#settings_preset_openai')?.options??[])].map(option=>option.text);
@@ -85,10 +98,15 @@ export function createPresetTools({ context, settings, onRefresh }) {
         }).filter(item=>Array.isArray(item.prompts));
     }
     const switchProfiles=createSwitchProfiles({context,settings,getManager:pm,getPresetName:currentPresetName,waitForPreset,getPresetCatalog:presetCatalog,onRefresh});
-    const sliders=createPresetSliderGuard({enabled:()=>settings.search,getSettings:fallback,getBindings:()=>openai?.settingsToUpdate,getPreset:()=>{
-        const manager=getManager(),name=currentPresetName(),preset=manager?.getCompletionPresetByName?.(name);if(preset)return preset;
-        const list=manager?.getPresetList?.(),index=Array.isArray(list?.preset_names)?list.preset_names.indexOf(name):list?.preset_names?.[name];return list?.presets?.[index];
-    }});
+    const sliders=createPresetSliderGuard({enabled:()=>settings.search,getSettings:fallback,getBindings:()=>openai?.settingsToUpdate,getPreset:()=>originalDefaults.get(currentPresetName())});
+    const defaultSubscriptions=[];
+    for(const [event,handler] of [
+        ['PRESET_RENAMED',data=>{if(data?.apiId==='openai'){originalDefaults.rename(data.oldName,data.newName);onRefresh();}}],
+        ['PRESET_DELETED',data=>{if(data?.apiId==='openai'){originalDefaults.remove(data.name);onRefresh();}}],
+    ]){
+        const type=context.eventTypes?.[event]??context.event_types?.[event];
+        if(type&&context.eventSource?.on){context.eventSource.on(type,handler);defaultSubscriptions.push([type,handler]);}
+    }
     let jqueryDocument=null;
     function bindPresetChanges() {
         if(!jqueryDocument&&window.jQuery?.fn?.on) {
@@ -132,12 +150,14 @@ export function createPresetTools({ context, settings, onRefresh }) {
     }
     function onNativeChange(event) {
         if(event.target?.id!=='settings_preset_openai')return;
+        capturePresetDefaults();
         syncSearchPreset();
         switchProfiles.refresh();onRefresh();
         void waitForPreset().then(()=>{if(!destroyed){switchProfiles.refresh();onRefresh();}}).catch(error=>notify(error.message));
     }
     document.addEventListener('change',onNativeChange);
     function refresh() {
+        capturePresetDefaults();
         sliders.refresh();
         syncSearchPreset();bindPresetChanges();mountPresetPicker();
         for (const [list, state] of bars) if (!list.isConnected) { nativeSearch.restore(list);state.bar.remove();bars.delete(list); }
@@ -205,7 +225,8 @@ export function createPresetTools({ context, settings, onRefresh }) {
         }
         await post('/api/presets/delete', { name:item.name, apiId:'openai' });
         delete preset_names[item.name];option?.remove();
-        if(newName)switchProfiles.renamePreset(item.name,newName);else switchProfiles.deletePreset(item.name);
+        if(newName){switchProfiles.renamePreset(item.name,newName);originalDefaults.rename(item.name,newName);}
+        else {switchProfiles.deletePreset(item.name);originalDefaults.remove(item.name);}
         if (wasCurrent) {
             const next = newName || Object.keys(preset_names)[0];
             if (newName) {
@@ -373,6 +394,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
     }
     function destroy() {
         destroyed=true;nativeSearch.destroy();switchProfiles.destroy();sliders.destroy();
+        for(const [type,handler] of defaultSubscriptions)context.eventSource?.removeListener?.(type,handler);
         if(beforePresetEvent)context.eventSource?.removeListener?.(beforePresetEvent,clearPresetSearch);
         selectObserver?.disconnect();nativeSelect?.classList.remove('bs-preset-native-hidden');presetLaunch?.remove();switchHost?.remove();document.removeEventListener('change',onNativeChange);jqueryDocument?.off('change.bsPcPresetTools','#settings_preset_openai',onNativeChange);
         for(const [list,state] of bars) {list.classList.remove('bs-pc-search-list-hidden','bs-pc-compact-list');state.bar.remove();}

@@ -15,7 +15,9 @@ async function main(){
     w.structuredClone=structuredClone;
     const saved={temperature:.7,prompts:[]},settings={temp_openai:.7,preset_settings_openai:'A',prompts:[],prompt_order:[]};
     let saves=0;
-    w.SillyTavern={getContext:()=>({extensionSettings:{baishui_preset_copy:{search:true,protect:false,worldBooks:false,themeGallery:false}},saveSettingsDebounced(){}})};
+    const extensionSettings={baishui_preset_copy:{search:true,protect:false,worldBooks:false,themeGallery:false}},handlers=new Map();
+    const context={extensionSettings,saveSettingsDebounced(){},eventTypes:{PRESET_RENAMED:'renamed',PRESET_DELETED:'deleted'},eventSource:{on(type,fn){handlers.set(type,fn);},removeListener(type,fn){assert.equal(handlers.get(type),fn);handlers.delete(type);}}};
+    w.SillyTavern={getContext:()=>context};
     w.openai={oai_settings:settings,settingsToUpdate:{temperature:['#temp_openai','temp_openai']}};
     w.presetManager={getCompletionPresetByName:name=>name==='A'?saved:undefined};
     d.querySelector('#temp_openai').addEventListener('input',event=>{settings.temp_openai=Number(event.target.value);saves++;});
@@ -54,9 +56,30 @@ async function main(){
     number.value='.83';number.dispatchEvent(new w.Event('input',{bubbles:true}));assert.equal(settings.temp_openai,.83);assert.equal(saves,1);assert.equal(saved.temperature,.7);
     // Lifecycle hooks import exactly the same manifest URL as the script loader.
     assert.equal(await load(new URL(manifest.js,base).href),entry);
-    entry.namespace.onDisable();assert.equal(d.querySelector('#bs-pc-settings'),null);assert.equal(range.hasAttribute('inert'),false);
+    // Saving current edits into the preset, then reloading persisted extension
+    // settings, must never rewrite the first-import default.
+    saved.temperature=.83;
+    entry.namespace.onDisable();assert.equal(d.querySelector('#bs-pc-settings'),null);assert.equal(range.hasAttribute('inert'),false);assert.equal(handlers.size,0);
+    extensionSettings.baishui_preset_copy=JSON.parse(JSON.stringify(extensionSettings.baishui_preset_copy));
     entry.namespace.onEnable();for(let i=0;i<3;i++)await new Promise(resolve=>w.requestAnimationFrame(resolve));assert.equal(d.querySelectorAll('#bs-pc-settings').length,1);assert.equal(d.querySelectorAll('.bs-preset-default').length,1);assert.equal(number.value,'0.83');assert.equal(d.querySelector('.bs-preset-default').textContent,'默认 0.70');assert.ok([...coreLoads.values()].every(count=>count===1));
-    entry.namespace.onDisable();dom.window.close();
-    console.log('PASS: new release bypasses cached entry/dependencies/styles, canonical ST modules stay shared, stale settings panel is replaced, defaults/track protection/numeric saves and lifecycle hooks work through the actual module graph.');
+    // Rename from native UI and import/re-import use the same immutable records.
+    const option=d.querySelector('option');option.textContent='Renamed A';settings.preset_settings_openai='Renamed A';
+    w.presetManager.getCompletionPresetByName=name=>name==='Renamed A'?saved:undefined;
+    handlers.get('renamed')({apiId:'openai',oldName:'A',newName:'Renamed A'});
+    for(let i=0;i<2;i++)await new Promise(resolve=>w.requestAnimationFrame(resolve));
+    assert.equal(d.querySelector('.bs-preset-default').textContent,'默认 0.70');assert.equal(number.value,'0.83');
+    const imported={temperature:1.2,prompts:[]};
+    const newOption=d.createElement('option');newOption.text='New import';newOption.value='1';d.querySelector('select').append(newOption);
+    w.presetManager.getCompletionPresetByName=name=>name==='Renamed A'?saved:name==='New import'?imported:undefined;
+    const select=d.querySelector('select');select.value='1';settings.temp_openai=1.2;select.dispatchEvent(new w.Event('change',{bubbles:true}));
+    for(let i=0;i<2;i++)await new Promise(resolve=>w.requestAnimationFrame(resolve));
+    assert.equal(d.querySelector('.bs-preset-default').textContent,'默认 1.20');
+    imported.temperature=.5;settings.temp_openai=.5;select.dispatchEvent(new w.Event('change',{bubbles:true}));
+    for(let i=0;i<2;i++)await new Promise(resolve=>w.requestAnimationFrame(resolve));
+    assert.equal(d.querySelector('.bs-preset-default').textContent,'默认 1.20');assert.equal(number.value,'0.50');
+    newOption.remove();select.value='0';handlers.get('deleted')({apiId:'openai',name:'New import'});
+    assert.equal(extensionSettings.baishui_preset_copy.presetOriginalDefaults.some(item=>item.name==='New import'),false);
+    entry.namespace.onDisable();assert.equal(handlers.size,0);dom.window.close();
+    console.log('PASS: actual versioned module graph bypasses cache, shares core modules, replaces stale settings; initial defaults survive native saves, persisted-settings reload, rename and same-name re-import; new imports/deletion, numeric saves, track protection and hook cleanup work.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

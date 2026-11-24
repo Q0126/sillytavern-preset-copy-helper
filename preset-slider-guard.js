@@ -50,7 +50,7 @@ export function createPresetSliderGuard({enabled,getSettings,getPreset,getBindin
         if(document.activeElement!==counter)counter.value=format(current,range);
         const preset=getPreset?.(),raw=preset?.[presetKey]??preset?.[modelKey],defaultValue=Number(raw);
         const hasDefault=(typeof raw==='number'||typeof raw==='string'&&raw.trim()!=='')&&Number.isFinite(defaultValue);
-        state.ownTitle=hasDefault?`预设默认值：${format(defaultValue,range)}；请在此修改数值。`:'滑条防误触：请在此修改数值。';counter.title=state.ownTitle;
+        state.ownTitle=hasDefault?`已记录的初始默认值：${format(defaultValue,range)}；请在此修改当前数值。`:'滑条防误触：请在此修改数值。';counter.title=state.ownTitle;
         const title=range.closest('.range-block')?.querySelector('.range-block-title');
         if(hasDefault&&title){if(state.hint?.parentElement!==title){state.hint?.remove();state.hint=document.createElement('small');state.hint.className='bs-preset-default';title.append(state.hint);}const text=`默认 ${format(defaultValue,range)}`;if(state.hint.textContent!==text)state.hint.textContent=text;}
         else {state.hint?.remove();state.hint=null;}
