@@ -1,4 +1,4 @@
-import { renamePlan } from './preset-tools.js?v=1.7.6';
+import { renamePlan } from './preset-tools.js?v=1.7.7';
 
 const node=(tag,props={},text)=>{const el=Object.assign(document.createElement(tag),props);if(text!==undefined)el.textContent=text;return el;};
 const action=(text,run)=>{const el=node('button',{type:'button',className:'menu_button'},text);el.addEventListener('click',run);return el;};
@@ -164,7 +164,7 @@ export function createWorldbookTools({context,settings,onRefresh}) {
         const back=action('返回世界书',()=>loadBooks()),manage=action('批量管理',()=>{editing=!editing;selected.clear();drafts.clear();render();});
         const toolbar=node('div',{className:'bs-world-toolbar'});toolbar.append(back,manage);
         header.append(title,toolbar,action('关闭',()=>{if(!busy)dialog.close();}));
-        const search=node('input',{type:'text',className:'text_pole',placeholder:'搜索世界书 / 角色'});search.setAttribute('aria-label','搜索世界书或条目');
+        const search=node('input',{type:'text',className:'text_pole bs-world-search',placeholder:'搜索世界书名称'});
         const controls=node('div',{className:'bs-preset-actions'}),naming=node('div',{className:'bs-preset-actions'}),status=node('div',{className:'bs-theme-status',role:'status'}),list=node('div',{className:'bs-theme-scroll'}),footer=node('div',{className:'bs-preset-actions bs-preset-picker-footer'});
         const prefix=node('input',{className:'text_pole',placeholder:'统一前缀'}),suffix=node('input',{className:'text_pole',placeholder:'统一后缀'});
         const selectionBar=node('div',{className:'bs-world-selection'});selectionBar.append(controls,status);
@@ -180,10 +180,12 @@ export function createWorldbookTools({context,settings,onRefresh}) {
             if(busy)return;setBusy(true);
             try{const data=await wi.loadWorldInfo(name);if(!data?.entries)throw new Error('世界书读取失败。');book=name;snapshot=clone(data);items=Object.entries(data.entries).filter(([,entry])=>entry).map(([id,entry])=>({id,name:entry.comment??'',content:entry.content??'',searchText:norm(`${entry.comment??''}\n${entry.content??''}`),key:entry.key??[],disable:entry.disable===true}));editing=true;selected.clear();drafts.clear();search.value='';render();}catch(error){status.textContent=error.message;}finally{setBusy(false);}
         }
-        function loadBooks(){book=null;snapshot=null;editing=false;search.value='';selected.clear();drafts.clear();owners=worldbookOwners(ctx().characters,wi?.world_info?.charLore);items=names().map(name=>({id:name,name,searchText:norm(`${name}\n${label(name)}`)}));render();}
+        function loadBooks(){book=null;snapshot=null;editing=false;search.value='';selected.clear();drafts.clear();owners=worldbookOwners(ctx().characters,wi?.world_info?.charLore);items=names().map(name=>({id:name,name,searchText:norm(name)}));render();}
         function render(){
             title.textContent=book?`条目管理 · ${book}`:'世界书';title.title=title.textContent;back.hidden=!book;manage.hidden=!!book;manage.textContent=editing?'完成管理':'批量管理';controls.hidden=footer.hidden=!editing;naming.hidden=!editing||!!book;
-            search.placeholder=book?'搜索条目名称 / 内容':'搜索世界书 / 角色';list.replaceChildren();
+            search.placeholder=book?'搜索本书条目名称 / 内容':'搜索世界书名称';
+            search.setAttribute('aria-label',book?'搜索当前世界书条目':'搜索世界书名称');
+            search.dataset.scope=book?'entries':'books';list.replaceChildren();
             const matches=visible(),revision=++renderRevision;let offset=0;
             const appendBatch=()=>{
             const fragment=document.createDocumentFragment();

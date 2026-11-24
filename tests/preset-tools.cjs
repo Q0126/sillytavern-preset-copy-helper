@@ -47,6 +47,12 @@ async function main() {
     d.querySelector('.bs-preset-option').click();await tick();assert.equal(model.preset_settings_openai,'B');assert.equal(d.querySelector('.bs-preset-picker'),null);assert.equal(d.querySelector('#temp_counter_openai').value,'1.20');assert.equal(d.querySelector('.bs-preset-default').textContent,'默认 1.20');
     await openPicker();[...d.querySelectorAll('.bs-preset-option')].find(n=>n.querySelector('.bs-preset-option-name').textContent==='A').click();await tick();assert.equal(model.preset_settings_openai,'A');assert.equal(calls.length,0);assert.equal(d.querySelector('#temp_counter_openai').value,'0.70');assert.equal(d.querySelector('.bs-preset-default').textContent,'默认 0.70');assert.equal(d.querySelector('#temp_openai').hasAttribute('inert'),true);
     const search=d.querySelector('[aria-label="搜索当前预设条目"]');assert.equal(search.type,'text');assert.equal(d.querySelectorAll('.bs-pc-search-clear').length,1);
+    // Search is limited to the current preset's ordered entries, including
+    // folded ones; saved presets, unrelated DOM and unlisted prompts stay out.
+    assert.equal(search.placeholder,'搜索本预设条目名称 / 内容');
+    input(search,'BBB');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0 \/ 3/);
+    const external=d.createElement('div');external.id='WorldInfo';external.textContent='worldbook-only-needle';d.body.append(external);input(search,'worldbook-only-needle');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0 \/ 3/);external.remove();
+    model.prompts.push({identifier:'unlisted',name:'unlisted-only-needle',content:'not in active order'});input(search,'unlisted-only-needle');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 0 \/ 3/);model.prompts.pop();
     const originalA=d.querySelector('[data-pm-identifier="a"]');
     originalA.innerHTML='<span class="completion_prompt_manager_prompt_name" data-pm-name="重复">重复</span><span class="prompt-manager-edit-action fa-solid fa-pencil"></span><span class="prompt-manager-toggle-action fa-solid fa-toggle-off"></span><span class="prompt_manager_prompt_tokens">114</span>';
     const originalEdit=originalA.querySelector('.prompt-manager-edit-action');originalEdit.addEventListener('click',()=>{edited='a'});

@@ -1,7 +1,7 @@
-import { createNativePromptSearch } from './prompt-search.js?v=1.7.6';
-import { createSwitchProfiles } from './switch-profiles.js?v=1.7.6';
-import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.7.6';
-import { createPresetDefaults } from './preset-defaults.js?v=1.7.6';
+import { createNativePromptSearch } from './prompt-search.js?v=1.7.7';
+import { createSwitchProfiles } from './switch-profiles.js?v=1.7.7';
+import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.7.7';
+import { createPresetDefaults } from './preset-defaults.js?v=1.7.7';
 const LIST = '[id$="prompt_manager_list"]';
 const norm = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const termsFor = query => norm(query).trim().split(/\s+/u).filter(Boolean);
@@ -168,7 +168,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
                 nativeSearch.restore(list);
                 const bar = el('div', { className:'bs-pc-search' });
                 const row = el('div', { className:'bs-pc-search-row' });
-                const input = el('input', { type:'text', inputMode:'search', enterKeyHint:'search', className:'text_pole', value:query, placeholder:'搜索条目名称 / 内容', autocomplete:'off' });
+                const input = el('input', { type:'text', inputMode:'search', enterKeyHint:'search', className:'text_pole', value:query, placeholder:'搜索本预设条目名称 / 内容', autocomplete:'off' });
                 input.setAttribute('aria-label', '搜索当前预设条目');
                 const clear = () => { query=''; input.value=''; refresh(); input.focus(); };
                 const clearButton=button('×',clear);clearButton.className='bs-pc-search-clear';clearButton.title='清除搜索';clearButton.setAttribute('aria-label','清除搜索');
