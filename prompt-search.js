@@ -1,8 +1,8 @@
 function nativeElement(tag,className,text) {
     const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node;
 }
-// Filter live PromptManager nodes in place. Their controls, event listeners and
-// theme styles belong to ST / the grouping extension and must not be replaced.
+// Render search matches in our own panel. The original preset list, grouping,
+// collapse state, styling and sorting are never changed by a search.
 export function createNativePromptSearch({getManager,onRefresh}) {
     const lists=new Map();
     const pending=new Set();
@@ -63,72 +63,39 @@ export function createNativePromptSearch({getManager,onRefresh}) {
         const tokens=nativeElement('span','prompt_manager_prompt_tokens bs-pc-result-tokens',String(value));tokens.dataset.pmTokens=String(value);row.append(tokens);
         return row;
     }
-    function setSorting(list,state,active) {
-        const jq=window.jQuery;
-        if(!jq?.fn?.sortable||!jq(list).hasClass('ui-sortable'))return;
-        try {
-            if(active){if(state.sorting===undefined)state.sorting=jq(list).sortable('option','disabled');if(jq(list).sortable('option','disabled')!==true)jq(list).sortable('option','disabled',true);}
-            else if(!active&&state.sorting!==undefined)jq(list).sortable('option','disabled',state.sorting);
-        }catch{/* Some extensions replace sortable while rendering. */}
-    }
-    function resetMarks(state) {
-        for(const [node,before] of state.hiddenStyles){
-            // Only undo our own hiding, retaining newer styles from a renderer.
-            if(node.style.getPropertyValue('display')==='none'&&node.style.getPropertyPriority('display')==='important'){
-                if(before.value)node.style.setProperty('display',before.value,before.priority);
-                else node.style.removeProperty('display');
-                if(!before.hadStyle&&!node.getAttribute('style'))node.removeAttribute('style');
-            }
-        }
-        state.hiddenStyles.clear();
-        for(const node of state.marked)node.classList.remove('bs-pc-hidden','bs-pc-search-reveal');
-        state.marked.clear();
-    }
-    function hide(node,state){
-        state.hiddenStyles.set(node,{value:node.style.getPropertyValue('display'),priority:node.style.getPropertyPriority('display'),hadStyle:node.hasAttribute('style')});
-        node.style.setProperty('display','none','important');
-    }
     function restore(list) {
-        const state=lists.get(list);list.classList.remove('bs-pc-search-list-hidden','bs-pc-filtering');
-        if(!state)return;
-        resetMarks(state);for(const row of state.fallback.values())row.remove();
-        if(state.results){state.results.hidden=true;if(state.ownsResults)state.results.remove();}
-        setSorting(list,state,false);lists.delete(list);
+        const state=lists.get(list);if(!state)return;
+        state.results.replaceChildren();state.results.hidden=true;
+        if(state.ownsResults)state.results.remove();
+        lists.delete(list);
     }
     function filter(list,found,active,results) {
         if(!active){restore(list);return;}
         let state=lists.get(list);
-        if(!state){state={marked:new Set(),hiddenStyles:new Map(),fallback:new Map(),sorting:undefined,results,ownsResults:!results};lists.set(list,state);}
-        resetMarks(state);list.classList.remove('bs-pc-search-list-hidden');list.classList.add('bs-pc-filtering');setSorting(list,state,true);
+        if(state&&results&&state.results!==results){restore(list);state=null;}
+        if(!state){
+            const ownsResults=!results;
+            if(!results){results=nativeElement('ul','text_pole bs-pc-search-results');anchor(list).before(results);}
+            results.setAttribute('aria-label','当前预设搜索结果');results.tabIndex=0;
+            state={fallback:new Map(),results,ownsResults};lists.set(list,state);
+        }
         const ids=new Set(found.map(prompt=>String(prompt.identifier)));
-        const original=[...list.querySelectorAll('[data-pm-identifier]')].filter(row=>row.dataset.bsPcFallback!=='true');
-        const mounted=new Set(original.map(row=>row.dataset.pmIdentifier));
-        for(const [id,row] of state.fallback)if(!ids.has(id)||mounted.has(id)||!row.isConnected){row.remove();state.fallback.delete(id);}
-        for(const prompt of found) {
-            const id=String(prompt.identifier);if(mounted.has(id))continue;
-            const signature=JSON.stringify([prompt.name,prompt.enabled,getManager()?.tokenHandler?.getCounts?.()?.[id]]);
+        for(const [id,row] of state.fallback)if(!ids.has(id)){row.remove();state.fallback.delete(id);}
+        state.results.querySelector('.bs-pc-search-empty')?.remove();
+        const scrollTop=state.results.scrollTop;
+        const manager=getManager();
+        for(const [index,prompt] of found.entries()) {
+            const id=String(prompt.identifier);
+            const signature=JSON.stringify([prompt.name,prompt.enabled,prompt.marker,manager?.tokenHandler?.getCounts?.()?.[id],manager?.isPromptDeletionAllowed?.(prompt),manager?.isPromptEditAllowed?.(prompt),manager?.isPromptToggleAllowed?.(prompt)]);
             let row=state.fallback.get(id);
-            if(row?.dataset.bsPcSignature===signature)continue;
-            const next=nativeRow(prompt,list);next.dataset.bsPcSignature=signature;
-            if(!state.results){state.results=nativeElement('ul','text_pole bs-pc-search-results');anchor(list).before(state.results);}
-            if(row)row.replaceWith(next);else state.results.append(next);state.fallback.set(id,next);
+            if(row?.dataset.bsPcSignature!==signature){
+                const next=nativeRow(prompt,list);next.dataset.bsPcSignature=signature;
+                if(row)row.replaceWith(next);state.fallback.set(id,next);row=next;
+            }
+            if(state.results.children[index]!==row)state.results.insertBefore(row,state.results.children[index]??null);
         }
-        if(state.results)state.results.hidden=!state.fallback.size;
-        const ancestors=new Set(),visible=new Set();
-        for(const row of original) {
-            const match=ids.has(row.dataset.pmIdentifier);
-            row.classList.toggle('bs-pc-hidden',!match);state.marked.add(row);
-            if(!match)hide(row,state);
-            for(let parent=row.parentElement;parent&&parent!==list;parent=parent.parentElement){ancestors.add(parent);if(match)visible.add(parent);}
-        }
-        // Temporarily reveal matching folded groups. Keep collapse attributes,
-        // classes and inline styles intact so clearing restores the prior view.
-        for(const container of ancestors){container.classList.toggle('bs-pc-hidden',!visible.has(container));container.classList.toggle('bs-pc-search-reveal',visible.has(container));state.marked.add(container);if(!visible.has(container))hide(container,state);}
-        // An empty native list still has a 300px minimum height. When every
-        // match is virtual (or there are none), keep that blank list out of view.
-        const hasMountedMatch=original.some(row=>ids.has(row.dataset.pmIdentifier));
-        list.classList.toggle('bs-pc-search-list-hidden',!hasMountedMatch);
-        if(!hasMountedMatch)hide(list,state);
+        if(!found.length)state.results.append(nativeElement('li','bs-pc-search-empty','没有匹配的条目'));
+        state.results.hidden=false;state.results.scrollTop=scrollTop;
     }
     function destroy(){for(const list of [...lists.keys()])restore(list);}
     return {filter,restore,destroy,anchor};

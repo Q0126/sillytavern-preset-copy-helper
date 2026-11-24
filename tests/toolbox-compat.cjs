@@ -49,9 +49,10 @@ async function main(){
     const originalChildren=[...host.childNodes];
     assert.equal(host.querySelector('.bs-pc-search'),null,'toolbar must be outside the entire Vue mount');
     input('needle');assert.ok(d.querySelector('[data-bs-pc-fallback]'));assert.equal(host.querySelector('[data-bs-pc-fallback]'),null,'virtual results must not become Vue/Sortable children');assert.deepEqual([...host.childNodes],originalChildren);
+    const nativeBeforeSearch=host.innerHTML;input('visible');assert.equal(host.innerHTML,nativeBeforeSearch);assert.equal(d.querySelector('.bs-pc-search-results [data-pm-identifier="A-visible"]').dataset.bsPcFallback,'true');input('needle');assert.equal(host.innerHTML,nativeBeforeSearch);
     // Recreating just our toolbar must not keep virtual rows in its detached predecessor.
     d.querySelector('.bs-pc-search').remove();tool.refresh();assert.ok(d.querySelector('[data-bs-pc-fallback]'));assert.equal(host.querySelector('[data-bs-pc-fallback]'),null);
-    assert.equal(d.querySelector('[data-pm-identifier="A-visible"]').classList.contains('bs-pc-hidden'),true);
+    assert.equal(host.querySelector('[data-pm-identifier="A-visible"]').classList.contains('bs-pc-hidden'),false);
     // Before core updates its model, clear marks and fallback rows synchronously.
     listeners.get('preset-before')();assert.equal(search().value,'');assert.equal(d.querySelector('[data-bs-pc-fallback]'),null);assert.equal(d.querySelector('[data-pm-identifier="A-visible"]').classList.contains('bs-pc-hidden'),false);
     for(const name of ['B','A','B']){

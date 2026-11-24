@@ -6,10 +6,10 @@
 .bs-pc-search-clear:hover { background:var(--SmartThemeBorderColor,#7772); }
 .bs-pc-search-clear[hidden],.bs-pc-count[hidden] { display:none!important; }
 .bs-pc-search > .bs-pc-count { display:block; margin:4px 0; padding:0; font-size:12px; line-height:18px; opacity:.7; text-align:right; }
-.bs-pc-hidden { display:none !important; }
-.bs-pc-search-results { width:100%; margin:4px 0 0; padding:0; list-style:none; }
+.bs-pc-search-results { box-sizing:border-box; width:100%; max-height:min(320px,42vh); max-height:min(320px,42dvh); overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; touch-action:pan-y; -webkit-overflow-scrolling:touch; scrollbar-width:thin; margin:4px 0 0; padding:0; list-style:none; }
+.bs-pc-search-empty { padding:12px; opacity:.65; list-style:none; }
 .bs-pc-search-results[hidden] { display:none!important; }
-/* Virtual matches live outside the grouping extension's Vue mount. Native ST
+/* Search matches live outside the grouping extension's Vue mount. Native ST
    row CSS is scoped to #completion_prompt_manager_list and cannot reach them. */
 .bs-pc-search-results > .bs-pc-result { box-sizing:border-box; display:grid!important; grid-template-columns:18px minmax(0,1fr) 80px 45px; align-items:center; column-gap:6px; width:100%; min-width:0; min-height:40px; margin:0 0 .5em; padding:.5em; list-style:none; border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:0; color:inherit; background:transparent; }
 .bs-pc-result > .drag-handle { position:static; display:flex; align-items:center; justify-content:center; height:auto; padding:0; opacity:.25; pointer-events:none; }
@@ -22,7 +22,6 @@
 .bs-pc-result-actions .fa-toggle-on { color:var(--SmartThemeQuoteColor,inherit); }
 .bs-pc-result > .bs-pc-result-tokens { min-width:0; text-align:right; white-space:nowrap; font-size:calc(var(--mainFontSize,16px) * .9); font-variant-numeric:tabular-nums; }
 .bs-pc-result:has(.fa-toggle-off) > .bs-pc-result-name { opacity:.6; }
-.bs-pc-filtering .drag-handle { opacity:.25; pointer-events:none; }
 body.bs-pc-protect #chat .mes { -webkit-user-select:none; user-select:none; }
 body.bs-pc-protect #chat .mes .mes_text,
 body.bs-pc-protect #chat .mes .mes_text * { -webkit-user-select:text; user-select:text; }
@@ -104,12 +103,6 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 @media(max-width:600px) { .bs-theme-modal { width:calc(100vw - 16px); height:calc(100dvh - 16px); margin:8px; max-height:calc(100dvh - 16px); max-width:calc(100vw - 16px); } .bs-theme-header{padding:12px 12px 10px;} .bs-theme-search-row{padding:0 12px 10px;} .bs-theme-filters{padding:0 12px 10px;} .bs-theme-scroll{padding:2px 12px 12px;} .bs-theme-status{padding:0 12px 8px;} .bs-theme-grid{gap:10px;} .bs-theme-caption{padding:8px;} .bs-theme-note{padding:8px 12px;} }
 
 /* Preset tools: search results do not depend on third-party grouping DOM. */
-.bs-pc-search-list-hidden { display:none!important; }
-.bs-pc-compact-list > [class*="prompt_manager_list_head"] { display:flex!important; flex-direction:row!important; align-items:center!important; justify-content:space-between; gap:6px; height:auto!important; min-height:0!important; padding:6px 8px!important; margin:0!important; line-height:1.4!important; }
-.bs-pc-compact-list > [class*="prompt_manager_list_head"] > span { flex:0 0 auto!important; width:auto!important; min-height:0!important; margin:0!important; padding:0!important; white-space:nowrap; }
-.bs-pc-compact-list > [class*="prompt_manager_list_head"] > span:nth-child(2) { flex:1 1 0!important; }
-.bs-pc-compact-list > [class*="prompt_manager_list_separator"] { min-height:0!important; height:auto!important; margin:0!important; padding:0!important; }
-.bs-pc-compact-list > [class*="prompt_manager_list_separator"] hr { margin:3px 0!important; }
 .bs-preset-modal .bs-preset-actions { display:flex; flex-wrap:wrap; gap:6px; padding:6px 14px; flex:none; }
 .bs-preset-modal > .text_pole { width:calc(100% - 28px); margin:6px 14px; flex:none; }
 .bs-preset-actions input { flex:1 1 100px; width:0; min-width:0; margin:0; }
@@ -159,10 +152,6 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-switch-create > label { display:flex; flex:1 1 100%; flex-direction:column; gap:6px; font-size:13px; }
 .bs-switch-create > label > input { flex:none; width:100%; min-width:0; min-height:38px; font-size:14px; }
 .bs-switch-modal .bs-preset-actions > button { min-height:38px; font-size:13px!important; }
-.bs-pc-filtering .bs-pc-search-reveal { display:block!important; height:auto!important; max-height:none!important; visibility:visible!important; content-visibility:visible!important; }
-#completion_prompt_manager #completion_prompt_manager_list.bs-pc-filtering .bs-pc-search-reveal { display:block!important; height:auto!important; max-height:none!important; visibility:visible!important; content-visibility:visible!important; }
-#completion_prompt_manager #completion_prompt_manager_list.bs-pc-filtering .bs-pc-hidden { display:none!important; }
-.bs-pc-filtering .drag-handle { pointer-events:none!important; opacity:.25; }
 .bs-pc-search-row > input::-ms-clear { display:none!important; }
 .bs-preset-switcher > .menu_button { align-self:flex-start; width:auto!important; min-height:30px; margin:0; padding:4px 9px; font-size:13px!important; line-height:20px; white-space:nowrap; }
 .bs-switch-toolbar { display:flex; align-items:center; flex:none; gap:8px; padding:0 12px 8px; }

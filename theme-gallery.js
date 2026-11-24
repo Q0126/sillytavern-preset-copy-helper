@@ -1,6 +1,6 @@
-import { previewDocument, previewSize, activatePreviewFrame, resetPreviewCache } from './theme-preview.js?v=1.7.7';
-import { createCSSHistory } from './css-history.js?v=1.7.7';
-import { createCSSSearch } from './css-search.js?v=1.7.7';
+import { previewDocument, previewSize, activatePreviewFrame, resetPreviewCache } from './theme-preview.js?v=1.7.8';
+import { createCSSHistory } from './css-history.js?v=1.7.8';
+import { createCSSSearch } from './css-search.js?v=1.7.8';
 // Theme browser: applies via the existing #themes change handler, never rewrites themes.
 const normalize = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const el = (tag, props={}, text) => { const node=document.createElement(tag);Object.assign(node,props);if(text!==undefined)node.textContent=text;return node; };

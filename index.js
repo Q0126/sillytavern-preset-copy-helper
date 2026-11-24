@@ -1,9 +1,9 @@
-import { createThemeGallery } from './theme-gallery.js?v=1.7.7';
-import { createPresetTools } from './preset-tools.js?v=1.7.7';
-import { createWorldbookTools } from './worldbook-tools.js?v=1.7.7';
+import { createThemeGallery } from './theme-gallery.js?v=1.7.8';
+import { createPresetTools } from './preset-tools.js?v=1.7.8';
+import { createWorldbookTools } from './worldbook-tools.js?v=1.7.8';
 // SillyTavern UI extension. Data changes require explicit management actions.
 const KEY = 'baishui_preset_copy';
-const VERSION = '1.7.7';
+const VERSION = '1.7.8';
 const defaults = { search: true, protect: true, themeGallery: true, worldBooks: true };
 const LIST = '[id$="prompt_manager_list"]';
 const BODY = '#chat .mes .mes_text';
@@ -161,7 +161,6 @@ export function onDisable() {
     for(const remove of listeners.splice(0)) remove();
     for(const [type,fn] of subscriptions.splice(0)) ctx?.eventSource?.removeListener?.(type,fn);
     clearTimeout(restoreTimer);presetTools?.destroy();presetTools=null;worldbookTools?.destroy();worldbookTools=null;themeGallery?.destroy();themeGallery=null;document.body.classList.remove('bs-pc-protect');
-    document.querySelectorAll('.bs-pc-hidden').forEach(el=>el.classList.remove('bs-pc-hidden'));
     document.querySelectorAll('.bs-pc-search,.bs-pc-message,#bs-pc-settings').forEach(el=>el.remove());
 }
 export function onEnable() { init(); }

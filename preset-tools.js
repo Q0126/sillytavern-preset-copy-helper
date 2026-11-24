@@ -1,7 +1,7 @@
-import { createNativePromptSearch } from './prompt-search.js?v=1.7.7';
-import { createSwitchProfiles } from './switch-profiles.js?v=1.7.7';
-import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.7.7';
-import { createPresetDefaults } from './preset-defaults.js?v=1.7.7';
+import { createNativePromptSearch } from './prompt-search.js?v=1.7.8';
+import { createSwitchProfiles } from './switch-profiles.js?v=1.7.8';
+import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.7.8';
+import { createPresetDefaults } from './preset-defaults.js?v=1.7.8';
 const LIST = '[id$="prompt_manager_list"]';
 const norm = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const termsFor = query => norm(query).trim().split(/\s+/u).filter(Boolean);
@@ -162,7 +162,6 @@ export function createPresetTools({ context, settings, onRefresh }) {
         syncSearchPreset();bindPresetChanges();mountPresetPicker();
         for (const [list, state] of bars) if (!list.isConnected) { nativeSearch.restore(list);state.bar.remove();bars.delete(list); }
         for (const list of document.querySelectorAll(LIST)) {
-            list.classList.toggle('bs-pc-compact-list',settings.search);
             let state = bars.get(list);
             if (!state || !state.bar.isConnected) {
                 nativeSearch.restore(list);
@@ -177,7 +176,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
                 const results=el('ul',{className:'text_pole bs-pc-search-results',hidden:true});
                 bar.append(row,count,results);nativeSearch.anchor(list).before(bar);
                 state = { bar,input,clearButton,count,results }; bars.set(list, state);
-                input.addEventListener('input', () => { query=input.value; refresh(); });
+                input.addEventListener('input', () => { query=input.value; results.scrollTop=0; refresh(); });
                 input.addEventListener('keydown', event => { if (event.key==='Escape') { event.stopPropagation(); clear(); } });
             }
             const anchor=nativeSearch.anchor(list);
@@ -397,7 +396,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
         for(const [type,handler] of defaultSubscriptions)context.eventSource?.removeListener?.(type,handler);
         if(beforePresetEvent)context.eventSource?.removeListener?.(beforePresetEvent,clearPresetSearch);
         selectObserver?.disconnect();nativeSelect?.classList.remove('bs-preset-native-hidden');presetLaunch?.remove();switchHost?.remove();document.removeEventListener('change',onNativeChange);jqueryDocument?.off('change.bsPcPresetTools','#settings_preset_openai',onNativeChange);
-        for(const [list,state] of bars) {list.classList.remove('bs-pc-search-list-hidden','bs-pc-compact-list');state.bar.remove();}
+        for(const state of bars.values())state.bar.remove();
         bars.clear();modal?.close();modal?.remove();modal=null;
     }
     return { refresh, destroy };

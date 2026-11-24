@@ -57,13 +57,13 @@ async function main() {
     originalA.innerHTML='<span class="completion_prompt_manager_prompt_name" data-pm-name="重复">重复</span><span class="prompt-manager-edit-action fa-solid fa-pencil"></span><span class="prompt-manager-toggle-action fa-solid fa-toggle-off"></span><span class="prompt_manager_prompt_tokens">114</span>';
     const originalEdit=originalA.querySelector('.prompt-manager-edit-action');originalEdit.addEventListener('click',()=>{edited='a'});
     input(search,'HIDDEN needle');assert.match(d.querySelector('.bs-pc-count').textContent,/找到 1 \/ 3/);
-    assert.equal(d.querySelector('[data-pm-identifier="a"]'),originalA);assert.equal(originalA.classList.contains('bs-pc-hidden'),false);assert.equal(originalA.parentElement.classList.contains('bs-pc-search-reveal'),true);
+    assert.equal(d.querySelector('#completion_prompt_manager_list [data-pm-identifier="a"]'),originalA);assert.equal(originalA.classList.contains('bs-pc-hidden'),false);assert.equal(originalA.parentElement.classList.contains('bs-pc-search-reveal'),false);assert.equal(originalA.parentElement.hidden,true);
     originalEdit.click();assert.equal(edited,'a');assert.equal(d.querySelector('.bs-pc-results'),null);
     assert.equal(d.querySelectorAll('.bs-pc-result-toggle').length,0);
-    d.querySelector('#completion_prompt_manager_list').innerHTML='<section hidden><li data-pm-identifier="a">重复</li></section>';tool.refresh();assert.equal(d.querySelector('[data-pm-identifier="a"]').classList.contains('bs-pc-hidden'),false);
+    d.querySelector('#completion_prompt_manager_list').innerHTML='<section hidden><li data-pm-identifier="a">重复</li></section>';tool.refresh();assert.equal(d.querySelector('#completion_prompt_manager_list section').hidden,true);assert.ok(d.querySelector('.bs-pc-search-results [data-pm-identifier="a"]'));
     // Missing / virtual rows use the native classes and actions, never custom controls.
     const beforePrompts=JSON.stringify(model.prompts),beforeIds=model.prompt_order[0].order.map(p=>p.identifier).join(',');
-    input(search,'other');let fallback=d.querySelector('[data-bs-pc-fallback]');assert.ok(fallback.classList.contains('completion_prompt_manager_prompt'));fallback.querySelector('.prompt-manager-edit-action').click();assert.equal(edited,'b');
+    d.querySelector('.bs-pc-search-results').scrollTop=72;input(search,'other');assert.equal(d.querySelector('.bs-pc-search-results').scrollTop,0);let fallback=d.querySelector('[data-bs-pc-fallback]');assert.ok(fallback.classList.contains('completion_prompt_manager_prompt'));fallback.querySelector('.prompt-manager-edit-action').click();assert.equal(edited,'b');
     fallback.querySelector('.prompt-manager-toggle-action').click();await tick();await tick();assert.equal(model.prompt_order[0].order[1].enabled,false);
     d.querySelector('[data-bs-pc-fallback] .prompt-manager-toggle-action').click();await tick();await tick();assert.equal(model.prompt_order[0].order[1].enabled,true);
     failSettings=true;d.querySelector('[data-bs-pc-fallback] .prompt-manager-toggle-action').click();await tick();await tick();assert.equal(model.prompt_order[0].order[1].enabled,true);failSettings=false;
