@@ -1,5 +1,12 @@
 # 验证记录
 
+## v1.7.4
+
+- 核对酒馆 `extensions.js` 的脚本、样式及生命周期 hook 加载方式：直接拼接 manifest 地址，无自动版本参数。插件自有模块全部添加同一版本参数，酒馆核心 import 保留原地址。
+- 新增 `tests/release-loading.cjs`，用实际 ES 模块依赖图模拟已有旧模块缓存；验证新版入口、子模块、样式均绕过旧地址，核心模块仍共享同一实例，hook 访问同一入口，旧设置面板更新且显示当前版本。
+- 验证实际入口加载后默认值标记、滑条 inert / pointer-events、数字框原生保存，以及禁用后恢复、重新启用无重复 UI。原有模块隔离测试改为兼容版本化 import。
+- 全部 9 组回归及柏宝箱真实 Vue 组件测试、JS 语法与 diff 检查通过。未在用户手机中实测。
+
 ## v1.7.3
 
 - 核对官方预设 `settingsToUpdate` 映射、输入流程及 `CreateZenSliders`。新增 `tests/preset-slider-guard.cjs`，验证温度、频率/存在惩罚、Top P / K / A、Min P、重复惩罚、上下文及新增映射字段均被保护；无关音量滑条保持交互。

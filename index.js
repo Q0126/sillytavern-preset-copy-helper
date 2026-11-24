@@ -1,8 +1,9 @@
-import { createThemeGallery } from './theme-gallery.js';
-import { createPresetTools } from './preset-tools.js';
-import { createWorldbookTools } from './worldbook-tools.js';
+import { createThemeGallery } from './theme-gallery.js?v=1.7.4';
+import { createPresetTools } from './preset-tools.js?v=1.7.4';
+import { createWorldbookTools } from './worldbook-tools.js?v=1.7.4';
 // SillyTavern UI extension. Data changes require explicit management actions.
 const KEY = 'baishui_preset_copy';
+const VERSION = '1.7.4';
 const defaults = { search: true, protect: true, themeGallery: true, worldBooks: true };
 const LIST = '[id$="prompt_manager_list"]';
 const BODY = '#chat .mes .mes_text';
@@ -91,13 +92,19 @@ function restoreSelection() {
 function applySettings() { document.body.classList.toggle('bs-pc-protect', settings.protect); }
 function mountSettings() {
     const host = document.querySelector('#extensions_settings2, #extensions_settings');
-    if (!host || document.getElementById('bs-pc-settings')) return;
+    if (!host) return;
+    const existing = document.getElementById('bs-pc-settings');
+    if (existing?.dataset.version === VERSION) return;
+    existing?.remove();
     const panel = element('div', { id:'bs-pc-settings', className:'extension_container bs-pc-settings' });
+    panel.dataset.version = VERSION;
     const drawer = element('div', { className:'inline-drawer' });
     const header = element('div', { className:'inline-drawer-toggle inline-drawer-header', role:'button', tabIndex:0 });
     const content = element('div', { className:'inline-drawer-content', id:'bs-pc-settings-content' });
     header.setAttribute('aria-controls', content.id);
-    header.append(element('b', {}, '白水水'), element('div', { className:'inline-drawer-icon fa-solid fa-circle-chevron-down down' }));
+    const heading = element('span');
+    heading.append(element('b', {}, '白水水'), element('small', { className:'bs-pc-version' }, `v${VERSION}`));
+    header.append(heading, element('div', { className:'inline-drawer-icon fa-solid fa-circle-chevron-down down' }));
     // SillyTavern owns the click handler and animation for native inline drawers.
     header.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); header.click(); }

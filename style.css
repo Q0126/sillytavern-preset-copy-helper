@@ -215,3 +215,4 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 #pro-settings-block input.bs-preset-number,input.bs-preset-number { display:block!important; pointer-events:auto!important; }
 .bs-preset-counter { display:block!important; pointer-events:auto!important; }
 .bs-preset-default { display:inline; margin-inline-start:6px; font-size:11px; font-weight:normal; opacity:.65; white-space:nowrap; }
+.bs-pc-version { margin-inline-start:8px; font-size:11px; font-weight:normal; opacity:.6; }
