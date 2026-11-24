@@ -1,7 +1,7 @@
-import { createNativePromptSearch } from './prompt-search.js?v=1.7.8';
-import { createSwitchProfiles } from './switch-profiles.js?v=1.7.8';
-import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.7.8';
-import { createPresetDefaults } from './preset-defaults.js?v=1.7.8';
+import { createNativePromptSearch } from './prompt-search.js?v=1.7.9';
+import { createSwitchProfiles } from './switch-profiles.js?v=1.7.9';
+import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.7.9';
+import { createPresetDefaults } from './preset-defaults.js?v=1.7.9';
 const LIST = '[id$="prompt_manager_list"]';
 const norm = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const termsFor = query => norm(query).trim().split(/\s+/u).filter(Boolean);
@@ -116,7 +116,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
     }
     const nativeSearch=createNativePromptSearch({getManager:pm,onRefresh});
     let searchPreset=currentPresetName();
-    function clearPresetSearch(){query='';nativeSearch.destroy();for(const state of bars.values()){state.input.value='';state.clearButton.hidden=true;state.count.hidden=true;}}
+    function clearPresetSearch(){query='';nativeSearch.destroy();for(const state of bars.values()){state.input.value='';state.lastScroll=0;state.clearButton.hidden=true;state.count.hidden=true;}}
     function syncSearchPreset(){const name=currentPresetName();if(name!==searchPreset){searchPreset=name;clearPresetSearch();}}
     const beforePresetEvent=context.eventTypes?.OAI_PRESET_CHANGED_BEFORE??context.event_types?.OAI_PRESET_CHANGED_BEFORE;
     if(beforePresetEvent)context.eventSource?.on?.(beforePresetEvent,clearPresetSearch);
@@ -156,42 +156,63 @@ export function createPresetTools({ context, settings, onRefresh }) {
         void waitForPreset().then(()=>{if(!destroyed){switchProfiles.refresh();onRefresh();}}).catch(error=>notify(error.message));
     }
     document.addEventListener('change',onNativeChange);
+    let searchIndex=new Map();
+    function prepareSearchData(list,state){
+        const prompts=entries();
+        const data=prompts.length?prompts:[...list.querySelectorAll('[data-pm-identifier]')].map(row=>({identifier:row.dataset.pmIdentifier,name:row.querySelector('[data-pm-name]')?.dataset.pmName??row.textContent,content:''}));
+        const next=new Map();
+        state.data=data.map(prompt=>{
+            const id=String(prompt.identifier),name=prompt.name??'',content=prompt.content??'';
+            let indexed=searchIndex.get(id);
+            if(!indexed||indexed.name!==name||indexed.content!==content)indexed={name,content,text:norm(`${name}\n${content}`)};
+            next.set(id,indexed);return {prompt,text:indexed.text};
+        });
+        searchIndex=next;
+    }
+    function updateSearch(list,state){
+        const changed=state.lastQuery!==query,terms=settings.search?termsFor(query):[];
+        state.lastQuery=query;state.bar.hidden=!settings.search;
+        if(state.input.value!==query)state.input.value=query;
+        state.clearButton.hidden=!query;state.count.hidden=!terms.length;
+        const data=state.data??[],found=terms.length?data.filter(item=>terms.every(term=>item.text.includes(term))).map(item=>item.prompt):[];
+        nativeSearch.filter(list,found,!!terms.length,state.results,changed);
+        // Never rewrite scrollTop during a background refresh / token update.
+        if(changed){state.lastScroll=0;if(terms.length&&state.results.scrollTop!==0)state.results.scrollTop=0;}
+        const message=terms.length?`找到 ${found.length} / ${data.length} 条${found.length?'':'，试试其他关键词'}`:`${data.length} 条`;
+        if(state.count.textContent!==message)state.count.textContent=message;
+    }
     function refresh() {
-        capturePresetDefaults();
-        sliders.refresh();
+        capturePresetDefaults();sliders.refresh();
         syncSearchPreset();bindPresetChanges();mountPresetPicker();
-        for (const [list, state] of bars) if (!list.isConnected) { nativeSearch.restore(list);state.bar.remove();bars.delete(list); }
-        for (const list of document.querySelectorAll(LIST)) {
-            let state = bars.get(list);
-            if (!state || !state.bar.isConnected) {
-                nativeSearch.restore(list);
-                const bar = el('div', { className:'bs-pc-search' });
-                const row = el('div', { className:'bs-pc-search-row' });
-                const input = el('input', { type:'text', inputMode:'search', enterKeyHint:'search', className:'text_pole', value:query, placeholder:'搜索本预设条目名称 / 内容', autocomplete:'off' });
-                input.setAttribute('aria-label', '搜索当前预设条目');
-                const clear = () => { query=''; input.value=''; refresh(); input.focus(); };
+        const liveLists=[...document.querySelectorAll(LIST)];
+        for(const [list,state] of bars)if(!list.isConnected){
+            const replacement=liveLists.find(next=>next.id===list.id&&!bars.has(next));
+            if(replacement){bars.delete(list);bars.set(replacement,state);nativeSearch.rebind(list,replacement);}
+            // Some native renders remove the list, await token/template work,
+            // then insert it in a later frame. Keep the owned panel in that gap.
+            else if(!liveLists.length)continue;
+            else {nativeSearch.restore(list);state.bar.remove();bars.delete(list);}
+        }
+        for(const list of liveLists){
+            let state=bars.get(list);
+            if(!state){
+                const bar=el('div',{className:'bs-pc-search'}),row=el('div',{className:'bs-pc-search-row'});
+                const input=el('input',{type:'text',inputMode:'search',enterKeyHint:'search',className:'text_pole',value:query,placeholder:'搜索本预设条目名称 / 内容',autocomplete:'off'});
+                input.setAttribute('aria-label','搜索当前预设条目');
+                const clear=()=>{query='';for(const [current,view] of bars)updateSearch(current,view);input.focus({preventScroll:true});};
                 const clearButton=button('×',clear);clearButton.className='bs-pc-search-clear';clearButton.title='清除搜索';clearButton.setAttribute('aria-label','清除搜索');
-                row.append(input,clearButton);
-                const count = el('small', { role:'status', className:'bs-pc-count' });
-                const results=el('ul',{className:'text_pole bs-pc-search-results',hidden:true});
-                bar.append(row,count,results);nativeSearch.anchor(list).before(bar);
-                state = { bar,input,clearButton,count,results }; bars.set(list, state);
-                input.addEventListener('input', () => { query=input.value; results.scrollTop=0; refresh(); });
-                input.addEventListener('keydown', event => { if (event.key==='Escape') { event.stopPropagation(); clear(); } });
+                const count=el('small',{role:'status',className:'bs-pc-count'}),results=el('ul',{className:'text_pole bs-pc-search-results',hidden:true});
+                row.append(input,clearButton);bar.append(row,count,results);
+                state={bar,input,clearButton,count,results,lastScroll:0};bars.set(list,state);
+                results.addEventListener('scroll',()=>{if(results.isConnected)state.lastScroll=results.scrollTop;},{passive:true});
+                input.addEventListener('input',()=>{query=input.value;for(const [current,view] of bars)updateSearch(current,view);});
+                input.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();clear();}});
             }
-            const anchor=nativeSearch.anchor(list);
+            const anchor=nativeSearch.anchor(list),detached=!state.bar.isConnected;
             if(state.bar.parentElement!==anchor.parentElement)anchor.before(state.bar);
-            state.bar.hidden = !settings.search;
-            if (state.input.value !== query) state.input.value = query;
-            const terms = settings.search ? termsFor(query) : [];
-            state.clearButton.hidden=!query;state.count.hidden=!terms.length;
-            const prompts = entries();
-            const rows = [...list.querySelectorAll('[data-pm-identifier]')];
-            const data = prompts.length ? prompts : rows.map(row => ({ identifier:row.dataset.pmIdentifier, name:row.querySelector('[data-pm-name]')?.dataset.pmName ?? row.textContent, content:'' }));
-            const found = terms.length ? data.filter(p => matches(`${p.name}\n${p.content ?? ''}`, terms)) : [];
-            nativeSearch.filter(list,found,!!terms.length,state.results);
-            const message=terms.length ? `找到 ${found.length} / ${data.length} 条${found.length?'':'，试试其他关键词'}` : `${data.length} 条`;
-            if (state.count.textContent !== message) state.count.textContent = message;
+            prepareSearchData(list,state);updateSearch(list,state);
+            // Only a genuinely detached/reinserted panel needs a one-off restore.
+            if(detached&&state.lastScroll&&state.results.scrollTop!==state.lastScroll)state.results.scrollTop=state.lastScroll;
         }
         switchProfiles.refresh();
     }

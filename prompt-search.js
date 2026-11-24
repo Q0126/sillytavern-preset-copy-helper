@@ -6,6 +6,7 @@ function nativeElement(tag,className,text) {
 export function createNativePromptSearch({getManager,onRefresh}) {
     const lists=new Map();
     const pending=new Set();
+    const rowParts=new WeakMap();
     // BaiBai owns this entire Vue mount, including the list's siblings. Keep
     // plugin UI outside it; Sortable/Vue must see only their own child nodes.
     const anchor=list=>{
@@ -61,15 +62,17 @@ export function createNativePromptSearch({getManager,onRefresh}) {
         outer.append(controls);row.append(outer);
         const value=manager?.tokenHandler?.getCounts?.()?.[prompt.identifier] ?? '-';
         const tokens=nativeElement('span','prompt_manager_prompt_tokens bs-pc-result-tokens',String(value));tokens.dataset.pmTokens=String(value);row.append(tokens);
+        rowParts.set(row,{name,label,tokens,edit:controls.querySelector('.prompt-manager-edit-action'),toggle:controls.querySelector('.prompt-manager-toggle-action'),disabledClass:`${prefix}prompt_manager_prompt_disabled`});
         return row;
     }
     function restore(list) {
         const state=lists.get(list);if(!state)return;
+        state.active=false;state.frame?.cancel();
         state.results.replaceChildren();state.results.hidden=true;
         if(state.ownsResults)state.results.remove();
         lists.delete(list);
     }
-    function filter(list,found,active,results) {
+    function filter(list,found,active,results,reset=false) {
         if(!active){restore(list);return;}
         let state=lists.get(list);
         if(state&&results&&state.results!==results){restore(list);state=null;}
@@ -77,26 +80,49 @@ export function createNativePromptSearch({getManager,onRefresh}) {
             const ownsResults=!results;
             if(!results){results=nativeElement('ul','text_pole bs-pc-search-results');anchor(list).before(results);}
             results.setAttribute('aria-label','当前预设搜索结果');results.tabIndex=0;
-            state={fallback:new Map(),results,ownsResults};lists.set(list,state);
+            state={fallback:new Map(),results,ownsResults,list,active:true,limit:40,frame:null};lists.set(list,state);
         }
-        const ids=new Set(found.map(prompt=>String(prompt.identifier)));
+        state.found=found;state.limit=Math.min(reset?40:Math.max(state.limit,40),found.length);
+        renderRows(state);scheduleRows(state);
+    }
+    function scheduleRows(state){
+        if(state.frame||state.limit>=state.found.length)return;
+        const callback=()=>{state.frame=null;if(!state.active||!state.results.isConnected)return;state.limit=Math.min(state.limit+32,state.found.length);renderRows(state);scheduleRows(state);};
+        if(typeof window.requestAnimationFrame==='function'){
+            const id=window.requestAnimationFrame(callback);state.frame={cancel:()=>window.cancelAnimationFrame?.(id)};
+        }else {const id=window.setTimeout(callback,16);state.frame={cancel:()=>window.clearTimeout(id)};}
+    }
+    function renderRows(state){
+        const {list}=state,found=state.found.slice(0,state.limit),ids=new Set(found.map(prompt=>String(prompt.identifier)));
         for(const [id,row] of state.fallback)if(!ids.has(id)){row.remove();state.fallback.delete(id);}
-        state.results.querySelector('.bs-pc-search-empty')?.remove();
-        const scrollTop=state.results.scrollTop;
+        if(found.length)state.results.querySelector('.bs-pc-search-empty')?.remove();
         const manager=getManager();
+        const counts=manager?.tokenHandler?.getCounts?.()??{};
         for(const [index,prompt] of found.entries()) {
             const id=String(prompt.identifier);
-            const signature=JSON.stringify([prompt.name,prompt.enabled,prompt.marker,manager?.tokenHandler?.getCounts?.()?.[id],manager?.isPromptDeletionAllowed?.(prompt),manager?.isPromptEditAllowed?.(prompt),manager?.isPromptToggleAllowed?.(prompt)]);
+            const capabilities=JSON.stringify([prompt.marker,manager?.isPromptDeletionAllowed?.(prompt),manager?.isPromptEditAllowed?.(prompt),manager?.isPromptToggleAllowed?.(prompt)]);
+            const signature=JSON.stringify([prompt.name,prompt.enabled,counts[id],capabilities]);
             let row=state.fallback.get(id);
-            if(row?.dataset.bsPcSignature!==signature){
-                const next=nativeRow(prompt,list);next.dataset.bsPcSignature=signature;
+            if(!row||row.dataset.bsPcCapabilities!==capabilities){
+                const next=nativeRow(prompt,list);next.dataset.bsPcCapabilities=capabilities;
                 if(row)row.replaceWith(next);state.fallback.set(id,next);row=next;
+            }
+            if(row.dataset.bsPcSignature!==signature){
+                const parts=rowParts.get(row),name=prompt.name||'未命名条目',value=String(counts[id]??'-');
+                if(parts.label.textContent!==name){parts.label.textContent=name;parts.label.title=prompt.name||'';parts.name.dataset.pmName=prompt.name||'';parts.edit?.setAttribute('aria-label',`编辑 ${name}`);parts.toggle?.setAttribute('aria-label',`切换 ${name}`);}
+                if(parts.tokens.textContent!==value){parts.tokens.textContent=value;parts.tokens.dataset.pmTokens=value;}
+                row.classList.toggle(parts.disabledClass,!prompt.enabled);
+                if(parts.toggle){parts.toggle.classList.toggle('fa-toggle-on',!!prompt.enabled);parts.toggle.classList.toggle('fa-toggle-off',!prompt.enabled);parts.toggle.setAttribute('aria-pressed',String(!!prompt.enabled));}
+                row.dataset.bsPcSignature=signature;
             }
             if(state.results.children[index]!==row)state.results.insertBefore(row,state.results.children[index]??null);
         }
-        if(!found.length)state.results.append(nativeElement('li','bs-pc-search-empty','没有匹配的条目'));
-        state.results.hidden=false;state.results.scrollTop=scrollTop;
+        if(!found.length&&!state.results.querySelector('.bs-pc-search-empty'))state.results.append(nativeElement('li','bs-pc-search-empty','没有匹配的条目'));
+        state.results.hidden=false;
     }
+    // Native renderers can replace their list after token counting. Our panel
+    // belongs to the preset, so keep it and its momentum rather than rebuilding.
+    function rebind(before,after){const state=lists.get(before);if(state){lists.delete(before);state.list=after;lists.set(after,state);}}
     function destroy(){for(const list of [...lists.keys()])restore(list);}
-    return {filter,restore,destroy,anchor};
+    return {filter,restore,destroy,anchor,rebind};
 }
