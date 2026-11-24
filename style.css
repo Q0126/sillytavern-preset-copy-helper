@@ -9,6 +9,19 @@
 .bs-pc-hidden { display:none !important; }
 .bs-pc-search-results { width:100%; margin:4px 0 0; padding:0; list-style:none; }
 .bs-pc-search-results[hidden] { display:none!important; }
+/* Virtual matches live outside the grouping extension's Vue mount. Native ST
+   row CSS is scoped to #completion_prompt_manager_list and cannot reach them. */
+.bs-pc-search-results > .bs-pc-result { box-sizing:border-box; display:grid!important; grid-template-columns:18px minmax(0,1fr) 80px 45px; align-items:center; column-gap:6px; width:100%; min-width:0; min-height:40px; margin:0 0 .5em; padding:.5em; list-style:none; border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:0; color:inherit; background:transparent; }
+.bs-pc-result > .drag-handle { position:static; display:flex; align-items:center; justify-content:center; height:auto; padding:0; opacity:.25; pointer-events:none; }
+.bs-pc-result > .bs-pc-result-name { min-width:0; overflow-wrap:anywhere; white-space:normal; line-height:1.4; }
+.bs-pc-result-name > .prompt-manager-inspect-action { color:inherit; cursor:pointer; }
+.bs-pc-result-actions { min-width:0; }
+.bs-pc-result-actions > .prompt_manager_prompt_controls { display:flex; align-items:center; justify-content:space-between; gap:4px; width:100%; font-size:calc(var(--mainFontSize,16px) * 1.2); }
+.bs-pc-result-actions .prompt_manager_prompt_controls > span { display:inline-flex; align-items:center; justify-content:center; flex:0 0 20px; width:20px; height:24px; margin:0; padding:0; opacity:.4; cursor:pointer; }
+.bs-pc-result-actions .prompt_manager_prompt_controls > span:hover,.bs-pc-result-actions .prompt_manager_prompt_controls > span:focus-visible { opacity:1; }
+.bs-pc-result-actions .fa-toggle-on { color:var(--SmartThemeQuoteColor,inherit); }
+.bs-pc-result > .bs-pc-result-tokens { min-width:0; text-align:right; white-space:nowrap; font-size:calc(var(--mainFontSize,16px) * .9); font-variant-numeric:tabular-nums; }
+.bs-pc-result:has(.fa-toggle-off) > .bs-pc-result-name { opacity:.6; }
 .bs-pc-filtering .drag-handle { opacity:.25; pointer-events:none; }
 body.bs-pc-protect #chat .mes { -webkit-user-select:none; user-select:none; }
 body.bs-pc-protect #chat .mes .mes_text,
@@ -147,6 +160,8 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-switch-create > label > input { flex:none; width:100%; min-width:0; min-height:38px; font-size:14px; }
 .bs-switch-modal .bs-preset-actions > button { min-height:38px; font-size:13px!important; }
 .bs-pc-filtering .bs-pc-search-reveal { display:block!important; height:auto!important; max-height:none!important; visibility:visible!important; content-visibility:visible!important; }
+#completion_prompt_manager #completion_prompt_manager_list.bs-pc-filtering .bs-pc-search-reveal { display:block!important; height:auto!important; max-height:none!important; visibility:visible!important; content-visibility:visible!important; }
+#completion_prompt_manager #completion_prompt_manager_list.bs-pc-filtering .bs-pc-hidden { display:none!important; }
 .bs-pc-filtering .drag-handle { pointer-events:none!important; opacity:.25; }
 .bs-pc-search-row > input::-ms-clear { display:none!important; }
 .bs-preset-switcher > .menu_button { align-self:flex-start; width:auto!important; min-height:30px; margin:0; padding:4px 9px; font-size:13px!important; line-height:20px; white-space:nowrap; }

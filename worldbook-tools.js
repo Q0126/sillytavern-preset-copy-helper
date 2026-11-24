@@ -1,4 +1,4 @@
-import { renamePlan } from './preset-tools.js?v=1.7.5';
+import { renamePlan } from './preset-tools.js?v=1.7.6';
 
 const node=(tag,props={},text)=>{const el=Object.assign(document.createElement(tag),props);if(text!==undefined)el.textContent=text;return el;};
 const action=(text,run)=>{const el=node('button',{type:'button',className:'menu_button'},text);el.addEventListener('click',run);return el;};
