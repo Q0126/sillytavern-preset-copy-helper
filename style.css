@@ -183,6 +183,10 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 /* World books share the preset manager's compact selection/edit pattern. */
 .bs-world-launch { display:inline-flex!important; align-items:center; justify-content:center; flex:0 0 auto!important; width:auto!important; min-width:48px!important; max-width:max-content; height:30px!important; min-height:30px!important; margin:4px 0!important; padding:4px 10px!important; font:inherit; font-size:12px!important; line-height:1.25!important; white-space:nowrap!important; writing-mode:horizontal-tb!important; }
 .bs-world-launch[hidden] { display:none!important; }
+.inline-drawer.bs-world-activation-tools { display:grid!important; grid-template-columns:minmax(0,1fr) auto; column-gap:8px; align-items:start; }
+.bs-world-activation-tools > .inline-drawer-header { grid-column:1; grid-row:1; width:auto!important; min-width:0; }
+.bs-world-activation-tools > .bs-world-launch { grid-column:2; grid-row:1; align-self:center; margin:0!important; }
+.bs-world-activation-tools > .inline-drawer-content { grid-column:1 / -1; grid-row:2; }
 .bs-theme-modal.bs-world-modal { width:min(400px,calc(100vw - 48px))!important; height:fit-content!important; min-height:0!important; max-width:calc(100vw - 48px)!important; max-height:calc(100dvh - 48px)!important; inset:0; margin:auto!important; padding:0!important; gap:0!important; border-radius:14px; font-size:14px; }
 .bs-world-modal .bs-theme-header { gap:8px!important; padding:10px 12px 6px!important; margin:0!important; min-height:0!important; }
 .bs-world-modal .bs-theme-header > strong { flex:1; min-width:0; font-size:16px!important; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }

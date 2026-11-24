@@ -50,7 +50,7 @@ export function editWorldbookEntries(data,selected,drafts,operation,snapshot) {
 }
 
 export function createWorldbookTools({context,settings,onRefresh}) {
-    let wi,destroyed=false,modal=null,owners=new Map();
+    let wi,destroyed=false,modal=null,owners=new Map(),activationPanel=null;
     const mounts=new Map();
     const ctx=()=>window.SillyTavern?.getContext?.()??context;
     const ready=import('../../../world-info.js').then(module=>{wi=module;if(!destroyed)onRefresh();}).catch(error=>console.warn('[白水世界书工具]',error));
@@ -127,15 +127,18 @@ export function createWorldbookTools({context,settings,onRefresh}) {
     }
     function refresh() {
         if(destroyed)return;
-        owners=worldbookOwners(ctx().characters,wi?.world_info?.charLore);
+        const nextPanel=document.querySelector('#wiActivationSettings')?.closest('.inline-drawer')??null;
+        if(activationPanel!==nextPanel){activationPanel?.classList.remove('bs-world-activation-tools');activationPanel=nextPanel;}
+        activationPanel?.classList.toggle('bs-world-activation-tools',!!settings.worldBooks);
         for(const [select,button] of mounts)if(!select.isConnected){button.remove();mounts.delete(select);}
         for(const select of document.querySelectorAll('#world_info')){
             let button=mounts.get(select);
-            if(!button?.isConnected){button=action('管理',()=>showManager().catch(notify));button.classList.add('bs-world-launch');button.title='选择世界书、查看关联角色或批量编辑';const anchor=select.closest('[data-v-app]')??select;anchor.parentElement.append(button);mounts.set(select,button);}
+            if(!button?.isConnected){button=action('管理',()=>showManager().catch(notify));button.classList.add('bs-world-launch');button.title='选择世界书、查看关联角色或批量编辑';mounts.set(select,button);}
+            const target=activationPanel??(select.closest('[data-v-app]')??select).parentElement;
+            if(button.parentElement!==target)target.append(button);
             button.hidden=!settings.worldBooks;
         }
         if(!settings.worldBooks&&!modal?.bsBusy)modal?.close();
-        const launch=document.querySelector('#bs-world-settings-launch');if(launch)launch.disabled=!settings.worldBooks;
     }
     function openWorldDrawer() {
         const drawer=document.querySelector('#WorldInfo');if(drawer?.classList.contains('closedDrawer'))document.querySelector('#WI-SP-button .drawer-toggle')?.click();
@@ -150,9 +153,13 @@ export function createWorldbookTools({context,settings,onRefresh}) {
     async function showManager() {
         await ready;if(destroyed||modal?.open)return;
         if(!wi?.loadWorldInfo||!wi?.saveWorldInfo||!wi?.deleteWorldInfo||!wi?.updateWorldInfoList)throw new Error('当前酒馆缺少世界书管理接口。');
-        await wi.updateWorldInfoList();refresh();if(destroyed||modal?.open)return;
+        // Opening is read-only: the native module already has the current list.
+        // Rebuilding all native selects here used to block the popup on a full
+        // settings request. Writes below still recheck server names and content.
+        refresh();if(destroyed||modal?.open)return;
         const dialog=node('dialog',{className:'bs-theme-modal bs-preset-modal bs-preset-picker bs-world-modal'});modal=dialog;
-        let busy=false,editing=false,book=null,snapshot=null,items=[],selected=new Set(),drafts=new Map(),returnToWorld=true;
+        let busy=false,editing=false,book=null,snapshot=null,items=[],selected=new Set(),drafts=new Map(),returnToWorld=true,renderRevision=0;
+        let viewItems=null,viewQuery=null,view=[];
         const header=node('div',{className:'bs-theme-header'}),title=node('strong',{},'世界书');
         const back=action('返回世界书',()=>loadBooks()),manage=action('批量管理',()=>{editing=!editing;selected.clear();drafts.clear();render();});
         const toolbar=node('div',{className:'bs-world-toolbar'});toolbar.append(back,manage);
@@ -161,19 +168,26 @@ export function createWorldbookTools({context,settings,onRefresh}) {
         const controls=node('div',{className:'bs-preset-actions'}),naming=node('div',{className:'bs-preset-actions'}),status=node('div',{className:'bs-theme-status',role:'status'}),list=node('div',{className:'bs-theme-scroll'}),footer=node('div',{className:'bs-preset-actions bs-preset-picker-footer'});
         const prefix=node('input',{className:'text_pole',placeholder:'统一前缀'}),suffix=node('input',{className:'text_pole',placeholder:'统一后缀'});
         const selectionBar=node('div',{className:'bs-world-selection'});selectionBar.append(controls,status);
-        const visible=()=>{const terms=norm(search.value).trim().split(/\s+/u).filter(Boolean);return items.filter(item=>terms.every(term=>norm(`${item.name}\n${item.content??''}\n${book?'':label(item.id)}`).includes(term)));};
+        const visible=()=>{
+            const query=norm(search.value).trim();if(viewItems===items&&viewQuery===query)return view;
+            const terms=query.split(/\s+/u).filter(Boolean);viewItems=items;viewQuery=query;
+            view=terms.length?items.filter(item=>terms.every(term=>item.searchText.includes(term))):items;return view;
+        };
         const confirm=async text=>ctx().Popup?.show?.confirm?ctx().Popup.show.confirm('确认批量操作',node('div',{className:'bs-world-confirm'},text)):window.confirm(text);
         const setBusy=value=>{busy=dialog.bsBusy=value;dialog.querySelectorAll('button,input').forEach(el=>el.disabled=value);};
         const count=()=>{status.textContent=editing?`已选 ${selected.size} / ${items.length} ${book?'条':'本'}`:`${visible().length} / ${items.length} 本世界书`;};
         async function loadEntries(name) {
             if(busy)return;setBusy(true);
-            try{const data=await wi.loadWorldInfo(name);if(!data?.entries)throw new Error('世界书读取失败。');book=name;snapshot=clone(data);items=Object.entries(data.entries).filter(([,entry])=>entry).map(([id,entry])=>({id,name:entry.comment??'',content:entry.content??'',key:entry.key??[],disable:entry.disable===true}));editing=true;selected.clear();drafts.clear();search.value='';render();}catch(error){status.textContent=error.message;}finally{setBusy(false);}
+            try{const data=await wi.loadWorldInfo(name);if(!data?.entries)throw new Error('世界书读取失败。');book=name;snapshot=clone(data);items=Object.entries(data.entries).filter(([,entry])=>entry).map(([id,entry])=>({id,name:entry.comment??'',content:entry.content??'',searchText:norm(`${entry.comment??''}\n${entry.content??''}`),key:entry.key??[],disable:entry.disable===true}));editing=true;selected.clear();drafts.clear();search.value='';render();}catch(error){status.textContent=error.message;}finally{setBusy(false);}
         }
-        function loadBooks(){book=null;snapshot=null;editing=false;search.value='';selected.clear();drafts.clear();refresh();items=names().map(name=>({id:name,name}));render();}
+        function loadBooks(){book=null;snapshot=null;editing=false;search.value='';selected.clear();drafts.clear();owners=worldbookOwners(ctx().characters,wi?.world_info?.charLore);items=names().map(name=>({id:name,name,searchText:norm(`${name}\n${label(name)}`)}));render();}
         function render(){
             title.textContent=book?`条目管理 · ${book}`:'世界书';title.title=title.textContent;back.hidden=!book;manage.hidden=!!book;manage.textContent=editing?'完成管理':'批量管理';controls.hidden=footer.hidden=!editing;naming.hidden=!editing||!!book;
             search.placeholder=book?'搜索条目名称 / 内容':'搜索世界书 / 角色';list.replaceChildren();
-            for(const item of visible()) {
+            const matches=visible(),revision=++renderRevision;let offset=0;
+            const appendBatch=()=>{
+            const fragment=document.createDocumentFragment();
+            for(const item of matches.slice(offset,offset+40)) {
                 const row=node('div',{className:`bs-world-row${editing?' bs-world-edit-row':''}`});
                 if(editing){
                     const check=node('input',{type:'checkbox',checked:selected.has(item.id)});check.setAttribute('aria-label',`选择 ${item.name||'#'+item.id}`);check.addEventListener('change',()=>{check.checked?selected.add(item.id):selected.delete(item.id);count();});
@@ -182,8 +196,12 @@ export function createWorldbookTools({context,settings,onRefresh}) {
                 }else{
                     const choose=action(item.name,async()=>{if(busy)return;try{await chooseBook(item.name);returnToWorld=false;dialog.close();}catch(error){status.textContent=error.message;}});choose.className='bs-world-choose';row.append(choose,action('条目管理',()=>loadEntries(item.name)));
                 }
-                row.append(node('small',{className:'bs-world-owners'},book?`${item.disable?'停用':'启用'} · 关键词：${item.key.join('、')||'无'}`:label(item.name)));list.append(row);
+                row.append(node('small',{className:'bs-world-owners'},book?`${item.disable?'停用':'启用'} · 关键词：${item.key.join('、')||'无'}`:label(item.name)));if(busy)row.querySelectorAll('button,input').forEach(control=>control.disabled=true);fragment.append(row);
             }
+            list.append(fragment);offset+=40;
+            if(offset<matches.length){const next=()=>{if(revision===renderRevision&&dialog.open&&dialog.isConnected)appendBatch();};if(typeof globalThis.requestAnimationFrame==='function')globalThis.requestAnimationFrame(next);else setTimeout(next,16);}
+            };
+            appendBatch();
             if(!list.childElementCount)list.append(node('p',{},'没有匹配的项目'));for(const button of footer.children)button.hidden=!book&&['批量启用','批量停用'].includes(button.textContent);count();
         }
         async function run(operation) {
@@ -219,9 +237,9 @@ export function createWorldbookTools({context,settings,onRefresh}) {
         // ST closes unpinned drawers on html touchstart/mousedown. Interactions
         // inside this top-layer dialog must not be mistaken for outside clicks.
         for(const type of ['pointerdown','mousedown','touchstart','click'])dialog.addEventListener(type,event=>event.stopPropagation());
-        search.addEventListener('input',render);dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault();});dialog.addEventListener('close',()=>{dialog.remove();if(modal===dialog)modal=null;if(!destroyed&&settings.worldBooks&&returnToWorld)openWorldDrawer();});
+        search.addEventListener('input',render);dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault();});dialog.addEventListener('close',()=>{renderRevision++;dialog.remove();if(modal===dialog)modal=null;if(!destroyed&&settings.worldBooks&&returnToWorld)openWorldDrawer();});
         dialog.append(header,search,selectionBar,naming,list,footer);document.body.append(dialog);loadBooks();dialog.showModal();
     }
-    function destroy(){destroyed=true;for(const button of mounts.values())button.remove();mounts.clear();if(modal&&!modal.bsBusy){modal.close();modal.remove();modal=null;}}
+    function destroy(){destroyed=true;activationPanel?.classList.remove('bs-world-activation-tools');for(const button of mounts.values())button.remove();mounts.clear();if(modal&&!modal.bsBusy){modal.close();modal.remove();modal=null;}}
     return {refresh,showManager,destroy};
 }

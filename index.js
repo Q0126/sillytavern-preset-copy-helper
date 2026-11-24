@@ -102,13 +102,10 @@ function mountSettings() {
     header.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); header.click(); }
     });
-    for(const [key,label] of [['search','预设搜索、批量管理与角色方案'],['worldBooks','世界书批量编辑与关联角色显示'],['protect','正文复制保护与滚动选区保留'],['themeGallery','美化预览、标签与搜索']]) {
+    for(const [key,label] of [['search','预设搜索、批量管理与角色方案'],['worldBooks','世界书管理'],['protect','正文复制保护与滚动选区保留'],['themeGallery','美化预览、标签与搜索']]) {
         const line=element('label', { className:'checkbox_label' }); const input=element('input',{type:'checkbox',checked:settings[key]});
         input.onchange=()=>{settings[key]=input.checked;save();}; line.append(input,element('span', {}, label)); content.append(line);
     }
-    const worlds=element('button',{id:'bs-world-settings-launch',type:'button',className:'menu_button'},'世界书管理');
-    worlds.addEventListener('click',()=>worldbookTools?.showManager().catch(error=>globalThis.toastr?.error?.(error.message)));content.append(worlds);
-    content.append(element('small',{className:'bs-pc-description'},'世界书列表支持按关联角色搜索与批量编辑。正文复制保护排除顶栏、消息工具和输入框。美化选择支持双列预览、自定义封面、标签分类和搜索。'));
     drawer.append(header, content);
     panel.append(drawer);host.append(panel);
 }
