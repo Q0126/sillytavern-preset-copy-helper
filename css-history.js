@@ -9,7 +9,7 @@ export function createCSSHistory({settings,onSave,onUpdate=()=>{}}) {
     const namespace=()=>{if(!settings.coverNamespace){settings.coverNamespace=crypto.randomUUID?.()??`asset-${Date.now()}-${Math.random()}`;onSave();}return settings.coverNamespace;};
     const currentName=()=>document.querySelector('#themes')?.value??'';
     function sync(){name=currentName();editor=document.querySelector('#customCSS');committed=editor?.value??'';before=null;}
-    function flush(){clearTimeout(timer);timer=null;if(!pending)return queue;const record=pending;pending=null;queue=queue.catch(()=>{}).then(()=>storage('put',`${namespace()}:${record.name}`,record)).then(()=>onUpdate(record.name));queue.catch(error=>console.warn('[白水杂货铺] CSS记录保存失败',error));return queue;}
+    function flush(){clearTimeout(timer);timer=null;if(!pending)return queue;const record=pending;pending=null;queue=queue.catch(()=>{}).then(()=>storage('put',`${namespace()}:${record.name}`,record)).then(()=>onUpdate(record.name));queue.catch(error=>console.warn('[白水水] CSS记录保存失败',error));return queue;}
     function input(event){if(disposed||event.target?.id!=='customCSS')return;if(currentName()!==name){void flush();sync();return;}if(!name)return;const value=event.target.value;if(value===committed)return;if(before===null)before=committed;pending={name,before,after:value,updatedAt:Date.now()};committed=value;clearTimeout(timer);timer=setTimeout(flush,700);}
     function focus(event){if(event.target?.id!=='customCSS')return;if(currentName()!==name)sync();else if(before===null)committed=event.target.value;}
     function blur(event){if(event.target?.id==='customCSS'){void flush();before=null;}}

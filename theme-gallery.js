@@ -172,7 +172,7 @@ export function createThemeGallery({context,settings,onSave}) {
         const previousFocus=document.activeElement;
         modal=el('dialog',{className:'bs-theme-modal',ariaLabel:'美化预览与分类'});
         const header=el('div',{className:'bs-theme-header'}),heading=el('div',{className:'bs-theme-heading'});
-        heading.append(el('strong',{},'美化收藏架'),el('small',{},'白水杂货铺'));
+        heading.append(el('strong',{},'美化收藏架'),el('small',{},'白水水'));
         const close=el('button',{type:'button',className:'menu_button bs-theme-close',ariaLabel:'关闭美化收藏架'},'关闭');close.onclick=()=>modal.close();header.append(heading,close);
         const tools=el('div',{className:'bs-theme-search-row'}),search=el('input',{type:'search',className:'text_pole',placeholder:'搜索美化名称或 tag…'});
         search.setAttribute('aria-label','搜索美化名称或标签');

@@ -1,12 +1,12 @@
 {
-  "display_name": "白水杂货铺",
+  "display_name": "白水水",
   "loading_order": 100,
   "requires": [],
   "optional": [],
   "js": "index.js",
   "css": "style.css",
   "author": "白水",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "auto_update": true,
   "hooks": {
     "disable": "onDisable",

@@ -97,7 +97,7 @@ function mountSettings() {
     const header = element('div', { className:'inline-drawer-toggle inline-drawer-header', role:'button', tabIndex:0 });
     const content = element('div', { className:'inline-drawer-content', id:'bs-pc-settings-content' });
     header.setAttribute('aria-controls', content.id);
-    header.append(element('b', {}, '白水杂货铺'), element('div', { className:'inline-drawer-icon fa-solid fa-circle-chevron-down down' }));
+    header.append(element('b', {}, '白水水'), element('div', { className:'inline-drawer-icon fa-solid fa-circle-chevron-down down' }));
     // SillyTavern owns the click handler and animation for native inline drawers.
     header.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); header.click(); }
@@ -106,7 +106,7 @@ function mountSettings() {
         const line=element('label', { className:'checkbox_label' }); const input=element('input',{type:'checkbox',checked:settings[key]});
         input.onchange=()=>{settings[key]=input.checked;save();}; line.append(input,element('span', {}, label)); content.append(line);
     }
-    const worlds=element('button',{id:'bs-world-settings-launch',type:'button',className:'menu_button'},'世界书列表 / 批量编辑');
+    const worlds=element('button',{id:'bs-world-settings-launch',type:'button',className:'menu_button'},'世界书管理');
     worlds.addEventListener('click',()=>worldbookTools?.showManager().catch(error=>globalThis.toastr?.error?.(error.message)));content.append(worlds);
     content.append(element('small',{className:'bs-pc-description'},'世界书列表支持按关联角色搜索与批量编辑。正文复制保护排除顶栏、消息工具和输入框。美化选择支持双列预览、自定义封面、标签分类和搜索。'));
     drawer.append(header, content);
