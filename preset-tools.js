@@ -1,5 +1,6 @@
 import { createNativePromptSearch } from './prompt-search.js';
 import { createSwitchProfiles } from './switch-profiles.js';
+import { createPresetSliderGuard } from './preset-slider-guard.js';
 const LIST = '[id$="prompt_manager_list"]';
 const norm = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const termsFor = query => norm(query).trim().split(/\s+/u).filter(Boolean);
@@ -84,6 +85,10 @@ export function createPresetTools({ context, settings, onRefresh }) {
         }).filter(item=>Array.isArray(item.prompts));
     }
     const switchProfiles=createSwitchProfiles({context,settings,getManager:pm,getPresetName:currentPresetName,waitForPreset,getPresetCatalog:presetCatalog,onRefresh});
+    const sliders=createPresetSliderGuard({enabled:()=>settings.search,getSettings:fallback,getBindings:()=>openai?.settingsToUpdate,getPreset:()=>{
+        const manager=getManager(),name=currentPresetName(),preset=manager?.getCompletionPresetByName?.(name);if(preset)return preset;
+        const list=manager?.getPresetList?.(),index=Array.isArray(list?.preset_names)?list.preset_names.indexOf(name):list?.preset_names?.[name];return list?.presets?.[index];
+    }});
     let jqueryDocument=null;
     function bindPresetChanges() {
         if(!jqueryDocument&&window.jQuery?.fn?.on) {
@@ -133,6 +138,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
     }
     document.addEventListener('change',onNativeChange);
     function refresh() {
+        sliders.refresh();
         syncSearchPreset();bindPresetChanges();mountPresetPicker();
         for (const [list, state] of bars) if (!list.isConnected) { nativeSearch.restore(list);state.bar.remove();bars.delete(list); }
         for (const list of document.querySelectorAll(LIST)) {
@@ -366,7 +372,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
         document.body.append(dialog);load('saved');dialog.showModal();
     }
     function destroy() {
-        destroyed=true;nativeSearch.destroy();switchProfiles.destroy();
+        destroyed=true;nativeSearch.destroy();switchProfiles.destroy();sliders.destroy();
         if(beforePresetEvent)context.eventSource?.removeListener?.(beforePresetEvent,clearPresetSearch);
         selectObserver?.disconnect();nativeSelect?.classList.remove('bs-preset-native-hidden');presetLaunch?.remove();switchHost?.remove();document.removeEventListener('change',onNativeChange);jqueryDocument?.off('change.bsPcPresetTools','#settings_preset_openai',onNativeChange);
         for(const [list,state] of bars) {list.classList.remove('bs-pc-search-list-hidden','bs-pc-compact-list');state.bar.remove();}

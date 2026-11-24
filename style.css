@@ -209,3 +209,9 @@ body.bs-pc-protect #chat .mes .mes_text :is(button,input,textarea,select,[conten
 .bs-world-owners { display:block; font-size:12px; line-height:1.5; opacity:.7; white-space:normal; overflow-wrap:anywhere; }
 .bs-world-row > .bs-world-owners { grid-column:1 / -1; }
 .bs-world-confirm { white-space:pre-wrap; max-height:50dvh; overflow:auto; text-align:left; }
+
+/* Preset tracks are read-only; numeric inputs retain the native save path. */
+.bs-preset-track,.bs-preset-track * { pointer-events:none!important; }
+#pro-settings-block input.bs-preset-number,input.bs-preset-number { display:block!important; pointer-events:auto!important; }
+.bs-preset-counter { display:block!important; pointer-events:auto!important; }
+.bs-preset-default { display:inline; margin-inline-start:6px; font-size:11px; font-weight:normal; opacity:.65; white-space:nowrap; }

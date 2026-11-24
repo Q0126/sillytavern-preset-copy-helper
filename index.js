@@ -102,7 +102,7 @@ function mountSettings() {
     header.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); header.click(); }
     });
-    for(const [key,label] of [['search','预设搜索、批量管理与角色方案'],['worldBooks','世界书管理'],['protect','正文复制保护与滚动选区保留'],['themeGallery','美化预览、标签与搜索']]) {
+    for(const [key,label] of [['search','预设管理与滑条防误触'],['worldBooks','世界书管理'],['protect','正文复制保护与滚动选区保留'],['themeGallery','美化预览、标签与搜索']]) {
         const line=element('label', { className:'checkbox_label' }); const input=element('input',{type:'checkbox',checked:settings[key]});
         input.onchange=()=>{settings[key]=input.checked;save();}; line.append(input,element('span', {}, label)); content.append(line);
     }
