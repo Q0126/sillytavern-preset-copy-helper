@@ -1,13 +1,15 @@
 import { createThemeGallery } from './theme-gallery.js';
 import { createPresetTools } from './preset-tools.js';
-// SillyTavern UI extension. Preset changes only occur after explicit batch or switch-scheme actions.
+import { createWorldbookTools } from './worldbook-tools.js';
+// SillyTavern UI extension. Data changes require explicit management actions.
 const KEY = 'baishui_preset_copy';
-const defaults = { search: true, protect: true, themeGallery: true };
+const defaults = { search: true, protect: true, themeGallery: true, worldBooks: true };
 const LIST = '[id$="prompt_manager_list"]';
 const BODY = '#chat .mes .mes_text';
 const EXCLUDE = 'script,style,button,input,textarea,select,iframe,svg,[hidden],[contenteditable="true"],.code-copy,.copy-code-button,.bs-pc-message';
 let ctx, settings, observer, scheduled = false, running = false;
 let presetTools = null;
+let worldbookTools = null;
 let themeGallery = null, savedRange = null, touchScroll = null, restoreTimer;
 const listeners = [], subscriptions = [];
 
@@ -33,6 +35,7 @@ function queueRefresh() {
 function refresh() {
     mountSettings();
     presetTools?.refresh();
+    worldbookTools?.refresh();
     themeGallery?.refresh();
 }
 
@@ -99,11 +102,13 @@ function mountSettings() {
     header.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); header.click(); }
     });
-    for(const [key,label] of [['search','预设搜索、批量管理与角色方案'],['protect','正文复制保护与滚动选区保留'],['themeGallery','美化预览、标签与搜索']]) {
+    for(const [key,label] of [['search','预设搜索、批量管理与角色方案'],['worldBooks','世界书批量编辑与关联角色显示'],['protect','正文复制保护与滚动选区保留'],['themeGallery','美化预览、标签与搜索']]) {
         const line=element('label', { className:'checkbox_label' }); const input=element('input',{type:'checkbox',checked:settings[key]});
         input.onchange=()=>{settings[key]=input.checked;save();}; line.append(input,element('span', {}, label)); content.append(line);
     }
-    content.append(element('small',{className:'bs-pc-description'},'正文复制保护排除顶栏、消息工具和输入框。美化选择支持双列预览、自定义封面、标签分类和搜索。'));
+    const worlds=element('button',{id:'bs-world-settings-launch',type:'button',className:'menu_button'},'世界书列表 / 批量编辑');
+    worlds.addEventListener('click',()=>worldbookTools?.showManager().catch(error=>globalThis.toastr?.error?.(error.message)));content.append(worlds);
+    content.append(element('small',{className:'bs-pc-description'},'世界书列表支持按关联角色搜索与批量编辑。正文复制保护排除顶栏、消息工具和输入框。美化选择支持双列预览、自定义封面、标签分类和搜索。'));
     drawer.append(header, content);
     panel.append(drawer);host.append(panel);
 }
@@ -118,11 +123,12 @@ function init() {
     for(const [k,v] of Object.entries(defaults)) if(typeof settings[k]!=='boolean') settings[k]=v;
     delete settings.buttons;
     presetTools = createPresetTools({ context:ctx, settings, onRefresh:queueRefresh });
+    worldbookTools = createWorldbookTools({ context:ctx, settings, onRefresh:queueRefresh });
     themeGallery = createThemeGallery({ context:ctx, settings, onSave:() => ctx.saveSettingsDebounced?.() });
     applySettings(); mountSettings(); refresh();
     observer=new MutationObserver(records=>{
         // Child-list only: filter class/style changes must not trigger a refresh loop.
-        if(records.some(r=>r.target.nodeType===1 && !r.target.closest('.bs-pc-search,.bs-preset-modal,.bs-theme-modal,.bs-theme-launch') && !r.target.closest('.mes_text') && (r.target.closest('#completion_prompt_manager,#chat,#UI-presets-block') || [...r.addedNodes].some(n=>n.nodeType===1 && (n.matches?.(LIST+',#chat,#completion_prompt_manager,#themes,#UI-presets-block,#settings_preset_openai') || n.querySelector?.(LIST+',#settings_preset_openai')))))) queueRefresh();
+        if(records.some(r=>r.target.nodeType===1 && !r.target.closest('.bs-pc-search,.bs-preset-modal,.bs-theme-modal,.bs-theme-launch,.bs-world-launch') && !r.target.closest('.mes_text') && (r.target.closest('#completion_prompt_manager,#chat,#UI-presets-block,#WorldInfo') || [...r.addedNodes].some(n=>n.nodeType===1 && (n.matches?.(LIST+',#chat,#completion_prompt_manager,#themes,#UI-presets-block,#settings_preset_openai,#world_editor_select,#world_info') || n.querySelector?.(LIST+',#settings_preset_openai,#world_editor_select,#world_info')))))) queueRefresh();
     });
     observer.observe(document.body,{childList:true,subtree:true});
     listen(document,'copy',onCopy,true);
@@ -141,7 +147,7 @@ function init() {
         }
     },{capture:true,passive:true});
     for(const type of ['pointerup','pointercancel']) listen(document,type,()=>{if(touchScroll){clearTimeout(restoreTimer);restoreTimer=setTimeout(()=>{restoreSelection();touchScroll=null;},180);}},true);
-    const refreshEvents=['CHAT_CHANGED','CHARACTER_MESSAGE_RENDERED','USER_MESSAGE_RENDERED','MESSAGE_EDITED','MESSAGE_SWIPED','GENERATION_ENDED','PRESET_CHANGED','OAI_PRESET_CHANGED_AFTER','SETTINGS_UPDATED'];
+    const refreshEvents=['CHAT_CHANGED','CHARACTER_MESSAGE_RENDERED','USER_MESSAGE_RENDERED','MESSAGE_EDITED','MESSAGE_SWIPED','GENERATION_ENDED','PRESET_CHANGED','OAI_PRESET_CHANGED_AFTER','SETTINGS_UPDATED','WORLDINFO_UPDATED','WORLDINFO_SETTINGS_UPDATED','CHARACTER_EDITED','CHARACTER_DELETED','CHARACTER_RENAMED','CHARACTER_CREATED'];
     for(const name of refreshEvents){const type=ctx.eventTypes?.[name] ?? ctx.event_types?.[name];if(type && ctx.eventSource?.on){ctx.eventSource.on(type,queueRefresh);subscriptions.push([type,queueRefresh]);}}
 
 }
@@ -150,7 +156,7 @@ export function onDisable() {
     observer?.disconnect();observer=null;
     for(const remove of listeners.splice(0)) remove();
     for(const [type,fn] of subscriptions.splice(0)) ctx?.eventSource?.removeListener?.(type,fn);
-    clearTimeout(restoreTimer);presetTools?.destroy();presetTools=null;themeGallery?.destroy();themeGallery=null;document.body.classList.remove('bs-pc-protect');
+    clearTimeout(restoreTimer);presetTools?.destroy();presetTools=null;worldbookTools?.destroy();worldbookTools=null;themeGallery?.destroy();themeGallery=null;document.body.classList.remove('bs-pc-protect');
     document.querySelectorAll('.bs-pc-hidden').forEach(el=>el.classList.remove('bs-pc-hidden'));
     document.querySelectorAll('.bs-pc-search,.bs-pc-message,#bs-pc-settings').forEach(el=>el.remove());
 }
