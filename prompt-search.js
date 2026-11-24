@@ -2,11 +2,61 @@ function nativeElement(tag,className,text) {
     const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node;
 }
 // Render search matches in our own panel. The original preset list, grouping,
-// collapse state, styling and sorting are never changed by a search.
-export function createNativePromptSearch({getManager,onRefresh}) {
+// collapse state, styling and sorting are never changed by a search. Only an
+// explicit Locate action may open the target's group and highlight its row.
+export function createNativePromptSearch({getManager,onRefresh,getPresetName=()=>getManager()?.serviceSettings?.preset_settings_openai,getGroupState=()=>getManager()?.serviceSettings?.extensions?.baibaiToolkit?.presetPromptGroups}) {
     const lists=new Map();
     const pending=new Set();
     const rowParts=new WeakMap();
+    let locateVersion=0,locateState=null,cancelLocate=null,highlight=null,highlightTimer;
+    function clearHighlight(){
+        window.clearTimeout(highlightTimer);
+        if(highlight){const {row,tabindex}=highlight;row.classList.remove('bs-pc-locate-highlight');if(row.getAttribute('tabindex')==='-1'){if(tabindex===null)row.removeAttribute('tabindex');else row.setAttribute('tabindex',tabindex);}highlight=null;}
+    }
+    function stopLocate(){locateVersion++;cancelLocate?.();cancelLocate=null;locateState=null;clearHighlight();}
+    function nativeTarget(state,id){return [...state.list.querySelectorAll('[data-pm-identifier]')].find(row=>row.dataset.pmIdentifier===id&&row.dataset.bsPcFallback!=='true'&&row.dataset.presetFavoriteMirror!=='true');}
+    function visibleTarget(state,row){
+        for(let node=row;node&&node!==state.list.parentElement;node=node.parentElement)if(node.hidden||node.tagName==='DETAILS'&&!node.open||node.classList.contains('bai-bai-preset-group-collapsed')||node.getAttribute('aria-hidden')==='true'||window.getComputedStyle(node).display==='none')return false;
+        return true;
+    }
+    function waitForTarget(state,id,valid){return new Promise(resolve=>{
+        let finished=false,timer;
+        const finish=row=>{if(finished)return;finished=true;observer.disconnect();window.clearTimeout(timer);if(cancelLocate===cancel)cancelLocate=null;resolve(row);};
+        const check=()=>{if(!valid())return finish();const row=nativeTarget(state,id);if(row&&visibleTarget(state,row))finish(row);};
+        const cancel=()=>finish(),observer=new MutationObserver(check);cancelLocate=cancel;
+        observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden','open','aria-hidden','style']});timer=window.setTimeout(()=>finish(),1400);check();
+    });}
+    async function locate(id,source,button){
+        const state=[...lists.values()].find(item=>item.results.contains(source));if(!state)return;
+        stopLocate();const version=locateVersion,presetName=getPresetName();locateState=state;
+        const valid=()=>version===locateVersion&&state.active&&lists.get(state.list)===state&&source.isConnected&&getPresetName()===presetName;
+        button.disabled=true;button.textContent='…';let expanded=false;
+        try{
+            let row=nativeTarget(state,id);
+            if(!row){
+                const groupId=getGroupState()?.prompts?.[id]?.groupId;
+                const group=[...state.list.querySelectorAll('.bai-bai-preset-group[data-preset-group-id]')].find(item=>item.dataset.presetGroupId===String(groupId));
+                if(group?.classList.contains('bai-bai-preset-group-collapsed')){group.querySelector('.bai-bai-preset-group-toggle')?.click();expanded=true;}
+            }else{
+                const parents=[];for(let node=row.parentElement;node&&node!==state.list;node=node.parentElement)parents.unshift(node);
+                for(const node of parents){
+                    if(node.tagName==='DETAILS'&&!node.open){node.open=true;expanded=true;}
+                    else if(node.classList.contains('bai-bai-preset-group-collapsed')){node.querySelector('.bai-bai-preset-group-toggle')?.click();expanded=true;}
+                    else if(node.hidden&&node.id){const control=[...state.list.querySelectorAll('[aria-controls]')].find(item=>item.getAttribute('aria-controls')===node.id&&item.getAttribute('aria-expanded')==='false');if(control){control.click();expanded=true;}}
+                }
+            }
+            row=await waitForTarget(state,id,valid);
+            // BaiBai's native group expansion animates for 180ms. Let the row
+            // settle before asking the browser to center it in the real list.
+            if(row&&expanded)await new Promise(resolve=>window.setTimeout(resolve,200));
+            if(!valid())return;
+            row=nativeTarget(state,id);
+            if(!row||!visibleTarget(state,row)){button.title='原条目可能被其他筛选隐藏，请展开相关分组后重试。';globalThis.toastr?.info?.(button.title);return;}
+            clearHighlight();highlight={row,tabindex:row.getAttribute('tabindex')};row.classList.add('bs-pc-locate-highlight');row.tabIndex=-1;row.focus({preventScroll:true});
+            row.scrollIntoView?.({block:'center',inline:'nearest',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+            highlightTimer=window.setTimeout(clearHighlight,1800);
+        }finally{button.disabled=false;button.textContent='定位';if(locateState===state&&version===locateVersion)locateState=null;}
+    }
     // BaiBai owns this entire Vue mount, including the list's siblings. Keep
     // plugin UI outside it; Sortable/Vue must see only their own child nodes.
     const anchor=list=>{
@@ -23,7 +73,8 @@ export function createNativePromptSearch({getManager,onRefresh}) {
         const row=nativeElement('li',`${prefix}prompt_manager_prompt ${prefix}prompt_manager_prompt_draggable${prompt.enabled?'':` ${prefix}prompt_manager_prompt_disabled`}${prompt.marker?` ${prefix}prompt_manager_marker`:''}`);
         row.classList.add('bs-pc-result');
         row.dataset.pmIdentifier=prompt.identifier;row.dataset.bsPcFallback='true';
-        const drag=nativeElement('span','drag-handle','☰');drag.setAttribute('aria-hidden','true');row.append(drag);
+        const locateButton=nativeElement('button','bs-pc-locate','定位');locateButton.type='button';locateButton.title='在原预设列表中定位';locateButton.setAttribute('aria-label',`定位 ${prompt.name||'未命名条目'}`);
+        locateButton.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();void locate(String(prompt.identifier),row,locateButton).catch(error=>globalThis.toastr?.error?.(error.message));});row.append(locateButton);
         const name=nativeElement('span',`${prefix}prompt_manager_prompt_name`);name.dataset.pmName=prompt.name||'';
         name.classList.add('bs-pc-result-name');
         const label=nativeElement('a','prompt-manager-inspect-action',prompt.name||'未命名条目');label.title=prompt.name||'';
@@ -62,11 +113,12 @@ export function createNativePromptSearch({getManager,onRefresh}) {
         outer.append(controls);row.append(outer);
         const value=manager?.tokenHandler?.getCounts?.()?.[prompt.identifier] ?? '-';
         const tokens=nativeElement('span','prompt_manager_prompt_tokens bs-pc-result-tokens',String(value));tokens.dataset.pmTokens=String(value);row.append(tokens);
-        rowParts.set(row,{name,label,tokens,edit:controls.querySelector('.prompt-manager-edit-action'),toggle:controls.querySelector('.prompt-manager-toggle-action'),disabledClass:`${prefix}prompt_manager_prompt_disabled`});
+        rowParts.set(row,{name,label,tokens,locateButton,edit:controls.querySelector('.prompt-manager-edit-action'),toggle:controls.querySelector('.prompt-manager-toggle-action'),disabledClass:`${prefix}prompt_manager_prompt_disabled`});
         return row;
     }
     function restore(list) {
         const state=lists.get(list);if(!state)return;
+        if(locateState===state)stopLocate();
         state.active=false;state.frame?.cancel();
         state.results.replaceChildren();state.results.hidden=true;
         if(state.ownsResults)state.results.remove();
@@ -109,7 +161,7 @@ export function createNativePromptSearch({getManager,onRefresh}) {
             }
             if(row.dataset.bsPcSignature!==signature){
                 const parts=rowParts.get(row),name=prompt.name||'未命名条目',value=String(counts[id]??'-');
-                if(parts.label.textContent!==name){parts.label.textContent=name;parts.label.title=prompt.name||'';parts.name.dataset.pmName=prompt.name||'';parts.edit?.setAttribute('aria-label',`编辑 ${name}`);parts.toggle?.setAttribute('aria-label',`切换 ${name}`);}
+                if(parts.label.textContent!==name){parts.label.textContent=name;parts.label.title=prompt.name||'';parts.name.dataset.pmName=prompt.name||'';parts.locateButton.setAttribute('aria-label',`定位 ${name}`);parts.edit?.setAttribute('aria-label',`编辑 ${name}`);parts.toggle?.setAttribute('aria-label',`切换 ${name}`);}
                 if(parts.tokens.textContent!==value){parts.tokens.textContent=value;parts.tokens.dataset.pmTokens=value;}
                 row.classList.toggle(parts.disabledClass,!prompt.enabled);
                 if(parts.toggle){parts.toggle.classList.toggle('fa-toggle-on',!!prompt.enabled);parts.toggle.classList.toggle('fa-toggle-off',!prompt.enabled);parts.toggle.setAttribute('aria-pressed',String(!!prompt.enabled));}
@@ -123,6 +175,6 @@ export function createNativePromptSearch({getManager,onRefresh}) {
     // Native renderers can replace their list after token counting. Our panel
     // belongs to the preset, so keep it and its momentum rather than rebuilding.
     function rebind(before,after){const state=lists.get(before);if(state){lists.delete(before);state.list=after;lists.set(after,state);}}
-    function destroy(){for(const list of [...lists.keys()])restore(list);}
+    function destroy(){stopLocate();for(const list of [...lists.keys()])restore(list);}
     return {filter,restore,destroy,anchor,rebind};
 }

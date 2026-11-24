@@ -27,12 +27,12 @@ async function main(){
         }
         const draggable=await load(path.join(runtime,'vue-draggable-next.esm-browser.prod.js'));await draggable.evaluate();
         vue=modules.get(path.join(runtime,'vue.esm-browser.prod.js')).namespace;
-        const state=vue.reactive({name:'A'}),h=vue.h;
+        const state=vue.reactive({name:'A',expanded:false}),h=vue.h;
         const app=vue.createApp({render(){const name=state.name;return [h('div',{class:'global-library'},'全局库'),h(draggable.namespace.VueDraggableNext,{tag:'ul',id:'completion_prompt_manager_list',list:[name],sort:false},{default:()=>[
             h('li',{key:`group-${name}`,class:'bai-bai-preset-group'},[h('strong',{},`Group ${name}`),h('div',{class:'bai-bai-preset-group-body'},[h('ul',{},[h('li',{'data-pm-identifier':`${name}-visible`,class:'completion_prompt_manager_prompt'},`${name} visible`)])])]),
-            h('li',{key:`fold-${name}`,class:'bai-bai-preset-group'},[h('strong',{},`Folded ${name}`),h('div',{hidden:true,class:'folded-body'},[])])
+            h('li',{key:`fold-${name}`,class:'bai-bai-preset-group'+(state.expanded?'':' bai-bai-preset-group-collapsed'),'data-preset-group-id':'fold-'+name},[h('strong',{},`Folded ${name}`),h('button',{class:'bai-bai-preset-group-toggle',onClick:()=>{state.expanded=true;}},'展开'),h('div',{hidden:!state.expanded,class:'folded-body','aria-hidden':state.expanded?'false':'true'},state.expanded?[h('li',{'data-pm-identifier':name+'-virtual',class:'completion_prompt_manager_prompt'},name+' folded')]:[])])
         ]})];}});app.config.errorHandler=error=>errors.push(error);app.mount(host);
-        updateView=async name=>{state.name=name;await vue.nextTick();await settle();};unmount=()=>app.unmount();
+        updateView=async name=>{state.name=name;state.expanded=false;await vue.nextTick();await settle();};unmount=()=>app.unmount();
     }else{
         host.innerHTML='<div class="global-library">全局库</div><ul id="completion_prompt_manager_list"></ul>';
         updateView=async name=>{d.querySelector('#completion_prompt_manager_list').innerHTML=`<li class="bai-bai-preset-group"><strong>Group ${name}</strong><div><ul><li data-pm-identifier="${name}-visible">${name} visible</li></ul></div></li><li class="bai-bai-preset-group"><div class="folded-body" hidden></div></li>`;};unmount=()=>{};
@@ -59,6 +59,14 @@ async function main(){
         select.value=name;select.dispatchEvent(new w.Event('change',{bubbles:true}));loadModel(name);tool.refresh();await updateView(name);tool.refresh();
         assert.ok(host.textContent.includes(`Group ${name}`));assert.ok(d.querySelector(`[data-pm-identifier="${name}-visible"]`));assert.equal(d.querySelectorAll('.bs-pc-search').length,1);assert.equal(host.querySelector('.bs-pc-search'),null);assert.equal(host.querySelector('[data-bs-pc-fallback]'),null);assert.equal(search().value,'');assert.equal(d.querySelector('.folded-body').hidden,true);
         input('needle');assert.equal(d.querySelector('[data-bs-pc-fallback]').dataset.pmIdentifier,`${name}-virtual`);
+    }
+    if(vue){
+        // Locate must use a real Vue toggle to mount the matching child; no
+        // injected nodes may enter the Vue/Sortable subtree.
+        model.extensions={baibaiToolkit:{presetPromptGroups:{groups:[{id:'fold-B'}],prompts:{'B-virtual':{groupId:'fold-B'}}}}};
+        const scrolls=[];w.HTMLElement.prototype.scrollIntoView=function(){scrolls.push(this);};
+        d.querySelector('.bs-pc-search-results [data-pm-identifier="B-virtual"] .bs-pc-locate').click();await new Promise(resolve=>setTimeout(resolve,240));
+        const target=host.querySelector('[data-pm-identifier="B-virtual"]');assert.ok(target);assert.equal(scrolls.at(-1),target);assert.equal(target.classList.contains('bs-pc-locate-highlight'),true);assert.equal(host.querySelector('[data-bs-pc-fallback]'),null);assert.deepEqual(errors,[]);
     }
     // Replacing the whole list with a new managed instance also stays external.
     unmount();host.innerHTML='<div class="global-library">全局库</div><ul id="completion_prompt_manager_list"><li data-pm-identifier="B-visible">B visible</li></ul>';tool.refresh();assert.equal(d.querySelectorAll('.bs-pc-search').length,1);assert.equal(host.querySelector('.bs-pc-search'),null);assert.equal(host.querySelector('[data-bs-pc-fallback]'),null);

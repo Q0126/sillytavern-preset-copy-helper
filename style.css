@@ -11,8 +11,7 @@
 .bs-pc-search-results[hidden] { display:none!important; }
 /* Search matches live outside the grouping extension's Vue mount. Native ST
    row CSS is scoped to #completion_prompt_manager_list and cannot reach them. */
-.bs-pc-search-results > .bs-pc-result { box-sizing:border-box; display:grid!important; grid-template-columns:18px minmax(0,1fr) 80px 45px; align-items:center; column-gap:6px; width:100%; min-width:0; min-height:40px; margin:0 0 .5em; padding:.5em; list-style:none; border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:0; color:inherit; background:transparent; }
-.bs-pc-result > .drag-handle { position:static; display:flex; align-items:center; justify-content:center; height:auto; padding:0; opacity:.25; pointer-events:none; }
+.bs-pc-search-results > .bs-pc-result { box-sizing:border-box; display:grid!important; grid-template-columns:32px minmax(0,1fr) 80px 45px; align-items:center; column-gap:6px; width:100%; min-width:0; min-height:40px; margin:0 0 .5em; padding:.5em; list-style:none; border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:0; color:inherit; background:transparent; }
 .bs-pc-result > .bs-pc-result-name { min-width:0; overflow-wrap:anywhere; white-space:normal; line-height:1.4; }
 .bs-pc-result-name > .prompt-manager-inspect-action { color:inherit; cursor:pointer; }
 .bs-pc-result-actions { min-width:0; }
@@ -22,6 +21,9 @@
 .bs-pc-result-actions .fa-toggle-on { color:var(--SmartThemeQuoteColor,inherit); }
 .bs-pc-result > .bs-pc-result-tokens { min-width:0; text-align:right; white-space:nowrap; font-size:calc(var(--mainFontSize,16px) * .9); font-variant-numeric:tabular-nums; }
 .bs-pc-result:has(.fa-toggle-off) > .bs-pc-result-name { opacity:.6; }
+.bs-pc-result > .bs-pc-locate { box-sizing:border-box; width:32px; min-width:0; height:28px; margin:0; padding:0 2px; border:1px solid var(--SmartThemeBorderColor,#7775); border-radius:4px; color:inherit; background:transparent; font:inherit; font-size:11px; line-height:1; white-space:nowrap; cursor:pointer; }
+.bs-pc-locate:disabled { opacity:.5; cursor:wait; }
+.bs-pc-locate-highlight { outline:2px solid var(--SmartThemeQuoteColor,currentColor)!important; outline-offset:2px; scroll-margin-block:24px; }
 body.bs-pc-protect #chat .mes { -webkit-user-select:none; user-select:none; }
 body.bs-pc-protect #chat .mes .mes_text,
 body.bs-pc-protect #chat .mes .mes_text * { -webkit-user-select:text; user-select:text; }

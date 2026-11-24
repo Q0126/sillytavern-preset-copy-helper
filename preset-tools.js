@@ -1,7 +1,7 @@
-import { createNativePromptSearch } from './prompt-search.js?v=1.7.9';
-import { createSwitchProfiles } from './switch-profiles.js?v=1.7.9';
-import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.7.9';
-import { createPresetDefaults } from './preset-defaults.js?v=1.7.9';
+import { createNativePromptSearch } from './prompt-search.js?v=1.8.0';
+import { createSwitchProfiles } from './switch-profiles.js?v=1.8.0';
+import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.8.0';
+import { createPresetDefaults } from './preset-defaults.js?v=1.8.0';
 const LIST = '[id$="prompt_manager_list"]';
 const norm = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const termsFor = query => norm(query).trim().split(/\s+/u).filter(Boolean);
@@ -114,7 +114,7 @@ export function createPresetTools({ context, settings, onRefresh }) {
             jqueryDocument.on('change.bsPcPresetTools','#settings_preset_openai',onNativeChange);
         }
     }
-    const nativeSearch=createNativePromptSearch({getManager:pm,onRefresh});
+    const nativeSearch=createNativePromptSearch({getManager:pm,onRefresh,getPresetName:currentPresetName,getGroupState:()=>fallback().extensions?.baibaiToolkit?.presetPromptGroups??savedPreset(currentPresetName())?.extensions?.baibaiToolkit?.presetPromptGroups});
     let searchPreset=currentPresetName();
     function clearPresetSearch(){query='';nativeSearch.destroy();for(const state of bars.values()){state.input.value='';state.lastScroll=0;state.clearButton.hidden=true;state.count.hidden=true;}}
     function syncSearchPreset(){const name=currentPresetName();if(name!==searchPreset){searchPreset=name;clearPresetSearch();}}
