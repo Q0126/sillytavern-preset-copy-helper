@@ -160,7 +160,7 @@ export function createSwitchProfiles({context,settings,getManager,getPresetName,
         header.append(el('strong',{},'角色条目方案'),button('关闭',()=>{if(!busy)modal.close();}));
         const label=el('div',{className:'bs-theme-status bs-switch-preset-label',title:presetName},`当前预设：${presetName}`);
         const actions=el('form',{id:'bs-switch-create',className:'bs-preset-actions bs-switch-create',hidden:true});
-        const name=el('input',{type:'text',className:'text_pole',placeholder:'例如：陈觉斐'});name.setAttribute('aria-label','方案名称');
+        const name=el('input',{type:'text',className:'text_pole'});name.setAttribute('aria-label','方案名称');
         const nameLabel=el('label',{},'方案名称');nameLabel.append(name);
         const search=el('input',{type:'text',className:'text_pole bs-switch-search',placeholder:'搜索已存方案'});search.setAttribute('aria-label','搜索角色方案');
         const setCreating=open=>{actions.hidden=!open;create.setAttribute('aria-expanded',String(open));(open?name:create).focus();};

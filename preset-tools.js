@@ -1,7 +1,7 @@
-import { createNativePromptSearch } from './prompt-search.js?v=1.8.0';
-import { createSwitchProfiles } from './switch-profiles.js?v=1.8.0';
-import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.8.0';
-import { createPresetDefaults } from './preset-defaults.js?v=1.8.0';
+import { createNativePromptSearch } from './prompt-search.js?v=1.8.1';
+import { createSwitchProfiles } from './switch-profiles.js?v=1.8.1';
+import { createPresetSliderGuard } from './preset-slider-guard.js?v=1.8.1';
+import { createPresetDefaults } from './preset-defaults.js?v=1.8.1';
 const LIST = '[id$="prompt_manager_list"]';
 const norm = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 const termsFor = query => norm(query).trim().split(/\s+/u).filter(Boolean);
